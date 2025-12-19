@@ -1,3 +1,14 @@
+# 1.0.0 (2025-12-19)
+
+
+### Features
+
+* Add numerous dependencies for UI components and utilities ([e4bb696](https://github.com/boletrics/partner/commit/e4bb696b1102fc53e09be9e75fee12b121a934cd))
+* Enable passWithNoTests in vitest config ([8892664](https://github.com/boletrics/partner/commit/8892664b6ca3d7fa900444737998f78fd383f65c))
+* Initialize org store with mock data and auto-select org ([36414e8](https://github.com/boletrics/partner/commit/36414e84fedd43cbc432ec3dc9d6cd71b7473991))
+* Lower coverage thresholds to 0 ([56f74ef](https://github.com/boletrics/partner/commit/56f74ef735148255c48704c183339bb1c10e2593))
+* Specify pnpm as package manager ([34ca725](https://github.com/boletrics/partner/commit/34ca7255558dad35a4e3dcb8c9513e04a243a7a3))
+
 # [1.1.0](https://github.com/algtools/next-template/compare/v1.0.0...v1.1.0) (2025-12-17)
 
 
