@@ -16,4 +16,25 @@
 		"enabled": true,
 	},
 	"upload_source_maps": true,
+	"vars": {
+		"NEXT_PUBLIC_AUTH_SERVICE_URL": "https://auth-svc.boletrics.workers.dev",
+		"NEXT_PUBLIC_AUTH_APP_URL": "https://auth.boletrics.workers.dev",
+		"NEXT_PUBLIC_AUTH_REDIRECT_URL": "https://partner.boletrics.workers.dev",
+	},
+	"env": {
+		"preview": {
+			"vars": {
+				"NEXT_PUBLIC_AUTH_SERVICE_URL": "https://auth-svc.boletrics.workers.dev",
+				"NEXT_PUBLIC_AUTH_APP_URL": "https://auth.boletrics.workers.dev",
+				"NEXT_PUBLIC_AUTH_REDIRECT_URL": "https://partner.boletrics.workers.dev",
+			},
+		},
+		"dev": {
+			"vars": {
+				"NEXT_PUBLIC_AUTH_SERVICE_URL": "https://auth-svc.boletrics.workers.dev",
+				"NEXT_PUBLIC_AUTH_APP_URL": "https://auth.boletrics.workers.dev",
+				"NEXT_PUBLIC_AUTH_REDIRECT_URL": "https://partner.boletrics.workers.dev",
+			},
+		},
+	},
 }
