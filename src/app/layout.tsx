@@ -2,6 +2,8 @@ import type React from "react";
 import type { Metadata } from "next";
 import { Inter, Source_Serif_4, JetBrains_Mono } from "next/font/google";
 import { ThemeProvider } from "@/components/theme-provider";
+import { getServerSession } from "@/lib/auth/getServerSession";
+import { SessionHydrator } from "@/lib/auth/useAuthSession";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -13,22 +15,26 @@ export const metadata: Metadata = {
 	description: "Administra tus eventos, ventas y equipo desde un solo lugar",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
 	children,
 }: Readonly<{
 	children: React.ReactNode;
 }>) {
+	const session = await getServerSession();
+
 	return (
 		<html lang="en" suppressHydrationWarning>
 			<body className={`font-sans antialiased`}>
-				<ThemeProvider
-					attribute="class"
-					defaultTheme="system"
-					enableSystem
-					disableTransitionOnChange
-				>
-					{children}
-				</ThemeProvider>
+				<SessionHydrator serverSession={session}>
+					<ThemeProvider
+						attribute="class"
+						defaultTheme="system"
+						enableSystem
+						disableTransitionOnChange
+					>
+						{children}
+					</ThemeProvider>
+				</SessionHydrator>
 			</body>
 		</html>
 	);
