@@ -1,3 +1,10 @@
+## [1.5.1](https://github.com/boletrics/partner/compare/v1.5.0...v1.5.1) (2025-12-22)
+
+
+### Bug Fixes
+
+* **invitations:** translate 'Invitation not found' error to Spanish ([5fe2c0d](https://github.com/boletrics/partner/commit/5fe2c0d669eb64c1eb2f1fcfa6b72d34e921d425))
+
 # [1.5.0](https://github.com/boletrics/partner/compare/v1.4.0...v1.5.0) (2025-12-22)
 
 
