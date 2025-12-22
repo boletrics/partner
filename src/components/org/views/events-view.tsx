@@ -130,7 +130,7 @@ export function EventsView() {
 	};
 
 	return (
-		<div className="p-4 md:p-6 space-y-6 min-w-0 max-w-full overflow-x-hidden">
+		<div className="p-4 md:p-6 space-y-6 min-w-0 w-full">
 			<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
 				<div className="min-w-0">
 					<h1 className="text-xl md:text-2xl font-bold tracking-tight">
@@ -148,18 +148,16 @@ export function EventsView() {
 				</Button>
 			</div>
 
-			<div className="overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0">
-				<Tabs defaultValue="all" className="w-full">
-					<TabsList className="w-max">
-						<TabsTrigger value="all">Todos ({mockEvents.length})</TabsTrigger>
-						<TabsTrigger value="active">Activos (4)</TabsTrigger>
-						<TabsTrigger value="scheduled">Programados (1)</TabsTrigger>
-						<TabsTrigger value="ended">Finalizados (0)</TabsTrigger>
-					</TabsList>
-				</Tabs>
-			</div>
+			<Tabs defaultValue="all" className="w-full">
+				<TabsList className="w-max">
+					<TabsTrigger value="all">Todos ({mockEvents.length})</TabsTrigger>
+					<TabsTrigger value="active">Activos (4)</TabsTrigger>
+					<TabsTrigger value="scheduled">Programados (1)</TabsTrigger>
+					<TabsTrigger value="ended">Finalizados (0)</TabsTrigger>
+				</TabsList>
+			</Tabs>
 
-			<Card className="overflow-hidden w-full max-w-full">
+			<Card className="overflow-hidden w-full">
 				<CardHeader>
 					<div className="flex flex-col sm:flex-row gap-4">
 						<div className="relative flex-1 min-w-0">
@@ -185,7 +183,7 @@ export function EventsView() {
 					</div>
 				</CardHeader>
 				<CardContent className="p-0 md:p-6 md:pt-0">
-					<div className="overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0">
+					<div className="overflow-x-auto">
 						<div className="rounded-md border min-w-[800px]">
 							<Table>
 								<TableHeader>
