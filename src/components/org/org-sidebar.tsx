@@ -242,7 +242,10 @@ function OrgSwitcher() {
 				<DropdownMenuSeparator />
 				<CreateOrganizationDialog
 					trigger={
-						<DropdownMenuItem className="gap-2 p-2">
+						<DropdownMenuItem
+							className="gap-2 p-2"
+							onSelect={(e) => e.preventDefault()}
+						>
 							<div className="flex h-6 w-6 items-center justify-center rounded-md border bg-background">
 								<Plus className="h-4 w-4" />
 							</div>
