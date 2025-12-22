@@ -20,7 +20,23 @@ function redirectToLogin(request: NextRequest): NextResponse {
 	return NextResponse.redirect(`${authAppUrl}/login?redirect_to=${returnUrl}`);
 }
 
+// Routes that don't require authentication (user handles login flow themselves)
+const PUBLIC_ROUTES = ["/invitations/accept"];
+
+function isPublicRoute(pathname: string): boolean {
+	return PUBLIC_ROUTES.some(
+		(route) => pathname === route || pathname.startsWith(`${route}/`),
+	);
+}
+
 export async function middleware(request: NextRequest) {
+	const { pathname } = request.nextUrl;
+
+	// Allow public routes without session validation
+	if (isPublicRoute(pathname)) {
+		return NextResponse.next();
+	}
+
 	const sessionCookie = getSessionCookie(request);
 
 	// No session cookie → redirect to auth app

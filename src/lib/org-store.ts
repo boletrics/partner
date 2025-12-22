@@ -78,6 +78,20 @@ export interface OrganizationMember {
 	avatar?: string | null;
 }
 
+// Organization Invitation Types
+export interface OrganizationInvitation {
+	id: string;
+	organizationId: string;
+	email: string;
+	role: OrganizationRole;
+	status: "pending" | "accepted" | "rejected" | "canceled";
+	expiresAt: string;
+	createdAt: string;
+	inviterId: string;
+	inviterName?: string | null;
+	inviterEmail?: string | null;
+}
+
 export type OrganizationRole =
 	| "owner"
 	| "admin"

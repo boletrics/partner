@@ -1,5 +1,6 @@
 import type {
 	Organization,
+	OrganizationInvitation,
 	OrganizationMember,
 	OrganizationSettings,
 } from "../org-store";
@@ -271,4 +272,67 @@ export async function acceptInvitation(
 	}
 
 	return { data: result.data, error: null };
+}
+
+function normalizeInvitation(raw: any): OrganizationInvitation {
+	const inviter = raw?.inviter ?? {};
+	return {
+		id: raw.id ?? "",
+		organizationId: raw.organizationId ?? "",
+		email: raw.email ?? "",
+		role: raw.role ?? "member",
+		status: raw.status ?? "pending",
+		expiresAt: raw.expiresAt ?? "",
+		createdAt: raw.createdAt ?? "",
+		inviterId: raw.inviterId ?? inviter.id ?? "",
+		inviterName: inviter.name ?? null,
+		inviterEmail: inviter.email ?? null,
+	};
+}
+
+export async function listInvitations(
+	organizationId: string,
+	status?: "pending" | "accepted" | "rejected" | "canceled",
+): Promise<ApiResult<OrganizationInvitation[]>> {
+	const url = new URL(
+		`${getAuthServiceUrl()}/api/auth/organization/list-invitations`,
+	);
+	url.searchParams.set("organizationId", organizationId);
+	if (status) {
+		url.searchParams.set("status", status);
+	}
+
+	const result = await http<any>(url.pathname + url.search);
+	if (result.error) {
+		return { data: null, error: result.error };
+	}
+
+	const invitationsRaw = Array.isArray(result.data)
+		? result.data
+		: (result.data?.invitations ?? []);
+
+	return { data: invitationsRaw.map(normalizeInvitation), error: null };
+}
+
+export async function cancelInvitation(
+	invitationId: string,
+): Promise<ApiResult<unknown>> {
+	const result = await http("/api/auth/organization/cancel-invitation", {
+		method: "POST",
+		body: JSON.stringify({ invitationId }),
+	});
+
+	if (result.error) {
+		return { data: null, error: result.error };
+	}
+
+	return { data: result.data, error: null };
+}
+
+export async function resendInvitation(input: {
+	email: string;
+	role: string;
+	organizationId: string;
+}): Promise<ApiResult<unknown>> {
+	return inviteMember({ ...input, resend: true });
 }
