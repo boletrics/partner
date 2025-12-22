@@ -40,7 +40,7 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useNavigationStore } from "@/lib/navigation-store";
+import Link from "next/link";
 
 const mockEvents = [
 	{
@@ -103,7 +103,6 @@ const mockEvents = [
 export function EventsView() {
 	const [searchQuery, setSearchQuery] = useState("");
 	const [statusFilter, setStatusFilter] = useState("all");
-	const { setView } = useNavigationStore();
 
 	const filteredEvents = mockEvents.filter((event) => {
 		const matchesSearch =
@@ -141,9 +140,11 @@ export function EventsView() {
 						Administra todos tus eventos y ventas
 					</p>
 				</div>
-				<Button onClick={() => setView("events-new")} className="gap-2">
-					<Plus className="h-4 w-4" />
-					Crear evento
+				<Button asChild className="gap-2">
+					<Link href="/events/new">
+						<Plus className="h-4 w-4" />
+						Crear evento
+					</Link>
 				</Button>
 			</div>
 

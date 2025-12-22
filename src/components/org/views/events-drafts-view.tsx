@@ -4,7 +4,7 @@ import { FileText, Calendar, MapPin, Edit, Trash, Plus } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useNavigationStore } from "@/lib/navigation-store";
+import Link from "next/link";
 
 const mockDrafts = [
 	{
@@ -31,8 +31,6 @@ const mockDrafts = [
 ];
 
 export function EventsDraftsView() {
-	const { setView } = useNavigationStore();
-
 	const formatRelativeTime = (dateString: string) => {
 		const date = new Date(dateString);
 		const now = new Date();
@@ -64,9 +62,11 @@ export function EventsDraftsView() {
 						Eventos guardados sin publicar
 					</p>
 				</div>
-				<Button onClick={() => setView("events-new")} className="gap-2">
-					<Plus className="h-4 w-4" />
-					Nuevo borrador
+				<Button asChild className="gap-2">
+					<Link href="/events/new">
+						<Plus className="h-4 w-4" />
+						Nuevo borrador
+					</Link>
 				</Button>
 			</div>
 
@@ -78,8 +78,8 @@ export function EventsDraftsView() {
 						<p className="text-muted-foreground text-center mb-4">
 							Los eventos que guardes sin publicar aparecerán aquí
 						</p>
-						<Button onClick={() => setView("events-new")}>
-							Crear primer borrador
+						<Button asChild>
+							<Link href="/events/new">Crear primer borrador</Link>
 						</Button>
 					</CardContent>
 				</Card>

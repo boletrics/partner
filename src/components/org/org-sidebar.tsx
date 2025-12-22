@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import {
 	LayoutDashboard,
 	Calendar,
@@ -47,11 +48,7 @@ import {
 } from "@/components/ui/collapsible";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useOrgStore } from "@/lib/org-store";
-import {
-	useNavigationStore,
-	type NavigationView,
-} from "@/lib/navigation-store";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useAuthSession } from "@/lib/auth/useAuthSession";
 import { logout } from "@/lib/auth/actions";
 import {
@@ -73,72 +70,77 @@ import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/components/ui/use-toast";
 import type React from "react";
 import { Button } from "@/components/ui/button";
+import type { LucideIcon } from "lucide-react";
 
-const mainNavItems = [
+type NavItem = {
+	title: string;
+	href?: string;
+	icon: LucideIcon;
+	items?: { title: string; href: string }[];
+};
+
+const mainNavItems: NavItem[] = [
 	{
 		title: "Panel Principal",
-		view: "dashboard" as NavigationView,
+		href: "/",
 		icon: LayoutDashboard,
 	},
 	{
 		title: "Eventos",
 		icon: Calendar,
 		items: [
-			{ title: "Todos los eventos", view: "events" as NavigationView },
-			{ title: "Crear evento", view: "events-new" as NavigationView },
-			{ title: "Borradores", view: "events-drafts" as NavigationView },
+			{ title: "Todos los eventos", href: "/events" },
+			{ title: "Crear evento", href: "/events/new" },
+			{ title: "Borradores", href: "/events/drafts" },
 		],
 	},
 	{
 		title: "Boletos",
 		icon: Ticket,
 		items: [
-			{ title: "Órdenes", view: "orders" as NavigationView },
-			{ title: "Escaneo", view: "scan" as NavigationView },
-			{ title: "Reembolsos", view: "refunds" as NavigationView },
+			{ title: "Órdenes", href: "/orders" },
+			{ title: "Escaneo", href: "/scan" },
+			{ title: "Reembolsos", href: "/refunds" },
 		],
 	},
 	{
 		title: "Clientes",
-		view: "customers" as NavigationView,
+		href: "/customers",
 		icon: Users,
 	},
 ];
 
-const businessNavItems = [
+const businessNavItems: NavItem[] = [
 	{
 		title: "Analíticas",
-		view: "analytics" as NavigationView,
+		href: "/analytics",
 		icon: BarChart3,
 	},
 	{
 		title: "Finanzas",
 		icon: Wallet,
 		items: [
-			{ title: "Resumen", view: "finance" as NavigationView },
-			{
-				title: "Transacciones",
-				view: "finance-transactions" as NavigationView,
-			},
-			{ title: "Retiros", view: "finance-payouts" as NavigationView },
+			{ title: "Resumen", href: "/finance" },
+			{ title: "Transacciones", href: "/finance/transactions" },
+			{ title: "Retiros", href: "/finance/payouts" },
 		],
 	},
 	{
 		title: "Equipo",
-		view: "team" as NavigationView,
+		href: "/team",
 		icon: Users,
 	},
 	{
 		title: "Configuración",
-		view: "settings" as NavigationView,
+		href: "/settings",
 		icon: Settings,
 	},
 ];
 
-const secondaryNavItems = [
+const secondaryNavItems: NavItem[] = [
 	{
 		title: "Centro de ayuda",
-		view: "help" as NavigationView,
+		href: "/help",
 		icon: HelpCircle,
 	},
 ];
@@ -263,8 +265,18 @@ function OrgSwitcher() {
 	);
 }
 
-function NavMain({ items }: { items: typeof mainNavItems }) {
-	const { currentView, setView } = useNavigationStore();
+function NavMain({ items }: { items: NavItem[] }) {
+	const pathname = usePathname();
+
+	const isActive = (href: string) => {
+		if (href === "/") return pathname === "/";
+		return pathname === href || pathname.startsWith(`${href}/`);
+	};
+
+	const isGroupActive = (item: NavItem) => {
+		if (item.href) return isActive(item.href);
+		return item.items?.some((sub) => isActive(sub.href)) ?? false;
+	};
 
 	return (
 		<SidebarGroup>
@@ -273,7 +285,11 @@ function NavMain({ items }: { items: typeof mainNavItems }) {
 				<SidebarMenu>
 					{items.map((item) =>
 						item.items ? (
-							<Collapsible key={item.title} asChild defaultOpen={false}>
+							<Collapsible
+								key={item.title}
+								asChild
+								defaultOpen={isGroupActive(item)}
+							>
 								<SidebarMenuItem>
 									<CollapsibleTrigger asChild>
 										<SidebarMenuButton tooltip={item.title}>
@@ -287,10 +303,12 @@ function NavMain({ items }: { items: typeof mainNavItems }) {
 											{item.items.map((subItem) => (
 												<SidebarMenuSubItem key={subItem.title}>
 													<SidebarMenuSubButton
-														onClick={() => setView(subItem.view)}
-														isActive={currentView === subItem.view}
+														asChild
+														isActive={isActive(subItem.href)}
 													>
-														<span>{subItem.title}</span>
+														<Link href={subItem.href}>
+															<span>{subItem.title}</span>
+														</Link>
 													</SidebarMenuSubButton>
 												</SidebarMenuSubItem>
 											))}
@@ -301,12 +319,14 @@ function NavMain({ items }: { items: typeof mainNavItems }) {
 						) : (
 							<SidebarMenuItem key={item.title}>
 								<SidebarMenuButton
-									onClick={() => setView(item.view!)}
+									asChild
 									tooltip={item.title}
-									isActive={currentView === item.view}
+									isActive={isActive(item.href!)}
 								>
-									<item.icon className="h-4 w-4" />
-									<span>{item.title}</span>
+									<Link href={item.href!}>
+										<item.icon className="h-4 w-4" />
+										<span>{item.title}</span>
+									</Link>
 								</SidebarMenuButton>
 							</SidebarMenuItem>
 						),
@@ -317,8 +337,18 @@ function NavMain({ items }: { items: typeof mainNavItems }) {
 	);
 }
 
-function NavBusiness({ items }: { items: typeof businessNavItems }) {
-	const { currentView, setView } = useNavigationStore();
+function NavBusiness({ items }: { items: NavItem[] }) {
+	const pathname = usePathname();
+
+	const isActive = (href: string) => {
+		if (href === "/") return pathname === "/";
+		return pathname === href || pathname.startsWith(`${href}/`);
+	};
+
+	const isGroupActive = (item: NavItem) => {
+		if (item.href) return isActive(item.href);
+		return item.items?.some((sub) => isActive(sub.href)) ?? false;
+	};
 
 	return (
 		<SidebarGroup>
@@ -327,7 +357,11 @@ function NavBusiness({ items }: { items: typeof businessNavItems }) {
 				<SidebarMenu>
 					{items.map((item) =>
 						item.items ? (
-							<Collapsible key={item.title} asChild defaultOpen={false}>
+							<Collapsible
+								key={item.title}
+								asChild
+								defaultOpen={isGroupActive(item)}
+							>
 								<SidebarMenuItem>
 									<CollapsibleTrigger asChild>
 										<SidebarMenuButton tooltip={item.title}>
@@ -341,10 +375,12 @@ function NavBusiness({ items }: { items: typeof businessNavItems }) {
 											{item.items.map((subItem) => (
 												<SidebarMenuSubItem key={subItem.title}>
 													<SidebarMenuSubButton
-														onClick={() => setView(subItem.view)}
-														isActive={currentView === subItem.view}
+														asChild
+														isActive={isActive(subItem.href)}
 													>
-														<span>{subItem.title}</span>
+														<Link href={subItem.href}>
+															<span>{subItem.title}</span>
+														</Link>
 													</SidebarMenuSubButton>
 												</SidebarMenuSubItem>
 											))}
@@ -355,12 +391,14 @@ function NavBusiness({ items }: { items: typeof businessNavItems }) {
 						) : (
 							<SidebarMenuItem key={item.title}>
 								<SidebarMenuButton
-									onClick={() => setView(item.view!)}
+									asChild
 									tooltip={item.title}
-									isActive={currentView === item.view}
+									isActive={isActive(item.href!)}
 								>
-									<item.icon className="h-4 w-4" />
-									<span>{item.title}</span>
+									<Link href={item.href!}>
+										<item.icon className="h-4 w-4" />
+										<span>{item.title}</span>
+									</Link>
 								</SidebarMenuButton>
 							</SidebarMenuItem>
 						),
@@ -371,8 +409,12 @@ function NavBusiness({ items }: { items: typeof businessNavItems }) {
 	);
 }
 
-function NavSecondary({ items }: { items: typeof secondaryNavItems }) {
-	const { setView } = useNavigationStore();
+function NavSecondary({ items }: { items: NavItem[] }) {
+	const pathname = usePathname();
+
+	const isActive = (href: string) => {
+		return pathname === href || pathname.startsWith(`${href}/`);
+	};
 
 	return (
 		<SidebarGroup className="mt-auto">
@@ -380,9 +422,15 @@ function NavSecondary({ items }: { items: typeof secondaryNavItems }) {
 				<SidebarMenu>
 					{items.map((item) => (
 						<SidebarMenuItem key={item.title}>
-							<SidebarMenuButton onClick={() => setView(item.view)} size="sm">
-								<item.icon className="h-4 w-4" />
-								<span>{item.title}</span>
+							<SidebarMenuButton
+								asChild
+								size="sm"
+								isActive={isActive(item.href!)}
+							>
+								<Link href={item.href!}>
+									<item.icon className="h-4 w-4" />
+									<span>{item.title}</span>
+								</Link>
 							</SidebarMenuButton>
 						</SidebarMenuItem>
 					))}
@@ -393,7 +441,7 @@ function NavSecondary({ items }: { items: typeof secondaryNavItems }) {
 }
 
 function NavUser() {
-	const { setView } = useNavigationStore();
+	const router = useRouter();
 	const { data: session, isPending } = useAuthSession();
 	const { error } = useOrgStore();
 
@@ -470,7 +518,7 @@ function NavUser() {
 							<Building2 className="mr-2 h-4 w-4" />
 							Ver tienda pública
 						</DropdownMenuItem>
-						<DropdownMenuItem onClick={() => setView("settings")}>
+						<DropdownMenuItem onClick={() => router.push("/settings")}>
 							<Settings className="mr-2 h-4 w-4" />
 							Mi perfil
 						</DropdownMenuItem>
@@ -490,8 +538,6 @@ function NavUser() {
 }
 
 export function OrgSidebar() {
-	const pathname = usePathname();
-
 	return (
 		<Sidebar collapsible="icon">
 			<SidebarHeader>

@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useOrgStore } from "@/lib/org-store";
 import { OrgDashboardLayout } from "@/components/org/org-dashboard-layout";
-import { OrgViewRouter } from "@/components/org/org-view-router";
 import { useThemeEffect } from "@/hooks/use-theme";
 import { useAuthSession } from "@/lib/auth/useAuthSession";
 import {
@@ -15,7 +14,19 @@ import { useToast } from "@/components/ui/use-toast";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
-export default function HomePage() {
+function slugify(value: string) {
+	return value
+		.toLowerCase()
+		.trim()
+		.replace(/[^a-z0-9]+/g, "-")
+		.replace(/^-+|-+$/g, "");
+}
+
+export default function DashboardLayout({
+	children,
+}: {
+	children: React.ReactNode;
+}) {
 	useThemeEffect();
 	const { toast } = useToast();
 	const { data: session } = useAuthSession();
@@ -202,17 +213,5 @@ export default function HomePage() {
 		);
 	}
 
-	return (
-		<OrgDashboardLayout>
-			<OrgViewRouter />
-		</OrgDashboardLayout>
-	);
-}
-
-function slugify(value: string) {
-	return value
-		.toLowerCase()
-		.trim()
-		.replace(/[^a-z0-9]+/g, "-")
-		.replace(/^-+|-+$/g, "");
+	return <OrgDashboardLayout>{children}</OrgDashboardLayout>;
 }

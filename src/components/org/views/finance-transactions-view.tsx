@@ -26,7 +26,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { useNavigationStore } from "@/lib/navigation-store";
+import Link from "next/link";
 import type { JSX } from "react";
 
 const mockTransactions = [
@@ -83,8 +83,6 @@ const mockTransactions = [
 ];
 
 export function FinanceTransactionsView() {
-	const { setView } = useNavigationStore();
-
 	const formatCurrency = (amount: number) => {
 		return new Intl.NumberFormat("es-MX", {
 			style: "currency",
@@ -117,8 +115,10 @@ export function FinanceTransactionsView() {
 	return (
 		<div className="p-4 md:p-6 space-y-6 overflow-hidden min-w-0">
 			<div className="flex items-center gap-4">
-				<Button variant="ghost" size="icon" onClick={() => setView("finance")}>
-					<ArrowLeft className="h-5 w-5" />
+				<Button variant="ghost" size="icon" asChild>
+					<Link href="/finance">
+						<ArrowLeft className="h-5 w-5" />
+					</Link>
 				</Button>
 				<div className="flex-1 min-w-0">
 					<h1 className="text-xl md:text-2xl font-bold tracking-tight truncate">

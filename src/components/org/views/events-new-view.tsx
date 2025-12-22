@@ -30,24 +30,27 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
-import { useNavigationStore } from "@/lib/navigation-store";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 export function EventsNewView() {
-	const { setView } = useNavigationStore();
+	const router = useRouter();
 	const [isSaving, setIsSaving] = useState(false);
 
 	const handleSave = async (draft = false) => {
 		setIsSaving(true);
 		await new Promise((resolve) => setTimeout(resolve, 1500));
 		setIsSaving(false);
-		setView("events");
+		router.push("/events");
 	};
 
 	return (
 		<div className="p-6 space-y-6">
 			<div className="flex items-center gap-4">
-				<Button variant="ghost" size="icon" onClick={() => setView("events")}>
-					<ArrowLeft className="h-5 w-5" />
+				<Button variant="ghost" size="icon" asChild>
+					<Link href="/events">
+						<ArrowLeft className="h-5 w-5" />
+					</Link>
 				</Button>
 				<div className="flex-1">
 					<h1 className="text-2xl font-bold tracking-tight">

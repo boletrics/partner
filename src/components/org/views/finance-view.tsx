@@ -17,11 +17,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { useNavigationStore } from "@/lib/navigation-store";
+import Link from "next/link";
 
 export function FinanceView() {
-	const { setView } = useNavigationStore();
-
 	const formatCurrency = (amount: number) => {
 		return new Intl.NumberFormat("es-MX", {
 			style: "currency",
@@ -41,9 +39,11 @@ export function FinanceView() {
 						Resumen financiero de tu organización
 					</p>
 				</div>
-				<Button onClick={() => setView("finance-payouts")} className="gap-2">
-					<Wallet className="h-4 w-4" />
-					Ver retiros
+				<Button asChild className="gap-2">
+					<Link href="/finance/payouts">
+						<Wallet className="h-4 w-4" />
+						Ver retiros
+					</Link>
 				</Button>
 			</div>
 
@@ -65,12 +65,8 @@ export function FinanceView() {
 				<CardContent>
 					<div className="flex flex-col sm:flex-row gap-4">
 						<Button className="flex-1">Solicitar retiro</Button>
-						<Button
-							variant="outline"
-							className="flex-1 bg-transparent"
-							onClick={() => setView("finance-transactions")}
-						>
-							Ver transacciones
+						<Button variant="outline" className="flex-1 bg-transparent" asChild>
+							<Link href="/finance/transactions">Ver transacciones</Link>
 						</Button>
 					</div>
 				</CardContent>
