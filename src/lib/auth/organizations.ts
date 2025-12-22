@@ -39,6 +39,12 @@ const ERROR_MESSAGES: Record<string, string> = {
 	MEMBER_ALREADY_EXISTS: "Este usuario ya es miembro de la organización.",
 };
 
+// Map of known error messages to user-friendly messages in Spanish
+const MESSAGE_TRANSLATIONS: Record<string, string> = {
+	"Invitation not found":
+		"Invitación expirada o revocada, contacte a su administrador.",
+};
+
 function extractErrorMessage(
 	body: ErrorResponse | null,
 	statusText: string,
@@ -48,6 +54,12 @@ function extractErrorMessage(
 	// If we have a known error code, use the friendly message
 	if (body.code && ERROR_MESSAGES[body.code]) {
 		return ERROR_MESSAGES[body.code];
+	}
+
+	// Check for known message translations
+	const message = body.message || body.error;
+	if (message && MESSAGE_TRANSLATIONS[message]) {
+		return MESSAGE_TRANSLATIONS[message];
 	}
 
 	// Otherwise use the message from the response
