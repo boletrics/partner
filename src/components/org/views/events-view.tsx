@@ -157,7 +157,7 @@ export function EventsView() {
 				</TabsList>
 			</Tabs>
 
-			<Card className="w-full max-w-full overflow-hidden">
+			<Card className="w-full max-w-full">
 				<CardHeader>
 					<div className="flex flex-col sm:flex-row gap-4">
 						<div className="relative flex-1 min-w-0">
