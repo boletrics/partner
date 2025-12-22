@@ -1,3 +1,10 @@
+# [1.5.0](https://github.com/boletrics/partner/compare/v1.4.0...v1.5.0) (2025-12-22)
+
+
+### Features
+
+* **routing:** implement URL-based routing for all dashboard sections ([b5dc8a4](https://github.com/boletrics/partner/commit/b5dc8a43ec7aebdc58aea627c4f9e7a6ab1014db))
+
 # [1.4.0](https://github.com/boletrics/partner/compare/v1.3.2...v1.4.0) (2025-12-22)
 
 
