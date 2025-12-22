@@ -1,3 +1,10 @@
+## [1.3.2](https://github.com/boletrics/partner/compare/v1.3.1...v1.3.2) (2025-12-22)
+
+
+### Bug Fixes
+
+* **org:** prevent dropdown close when opening create org dialog ([ebe66b0](https://github.com/boletrics/partner/commit/ebe66b04301b9a13aea0919a7a9ccd2f881f34f4))
+
 ## [1.3.1](https://github.com/boletrics/partner/compare/v1.3.0...v1.3.1) (2025-12-22)
 
 
