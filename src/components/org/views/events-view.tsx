@@ -130,7 +130,7 @@ export function EventsView() {
 	};
 
 	return (
-		<div className="p-4 md:p-6 space-y-6 overflow-hidden min-w-0">
+		<div className="p-4 md:p-6 space-y-6 min-w-0 max-w-full overflow-x-hidden">
 			<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
 				<div className="min-w-0">
 					<h1 className="text-xl md:text-2xl font-bold tracking-tight">
@@ -159,10 +159,10 @@ export function EventsView() {
 				</Tabs>
 			</div>
 
-			<Card className="overflow-hidden">
+			<Card className="overflow-hidden w-full max-w-full">
 				<CardHeader>
 					<div className="flex flex-col sm:flex-row gap-4">
-						<div className="relative flex-1">
+						<div className="relative flex-1 min-w-0">
 							<Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
 							<Input
 								placeholder="Buscar eventos..."
@@ -185,7 +185,7 @@ export function EventsView() {
 					</div>
 				</CardHeader>
 				<CardContent className="p-0 md:p-6 md:pt-0">
-					<div className="overflow-x-auto">
+					<div className="overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0">
 						<div className="rounded-md border min-w-[800px]">
 							<Table>
 								<TableHeader>
