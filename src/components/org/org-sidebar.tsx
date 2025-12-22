@@ -537,16 +537,25 @@ function CreateOrganizationDialog({
 	const [slug, setSlug] = useState("");
 	const [logo, setLogo] = useState("");
 	const [isSubmitting, setIsSubmitting] = useState(false);
+	const [error, setError] = useState<string | null>(null);
 
 	const derivedSlug = useMemo(
 		() => (slug ? slugify(slug) : slugify(name)),
 		[name, slug],
 	);
 
+	const resetForm = () => {
+		setName("");
+		setSlug("");
+		setLogo("");
+		setError(null);
+	};
+
 	const handleSubmit = async (event: React.FormEvent) => {
 		event.preventDefault();
 		if (isSubmitting) return;
 		setIsSubmitting(true);
+		setError(null);
 
 		const result = await createOrganization({
 			name,
@@ -555,11 +564,7 @@ function CreateOrganizationDialog({
 		});
 
 		if (result.error || !result.data) {
-			toast({
-				variant: "destructive",
-				title: "No se pudo crear la organización",
-				description: result.error || "Intenta nuevamente más tarde.",
-			});
+			setError(result.error || "Intenta nuevamente más tarde.");
 		} else {
 			onCreated(result.data);
 			toast({
@@ -567,16 +572,21 @@ function CreateOrganizationDialog({
 				description: `${result.data.name} ha sido creada.`,
 			});
 			setOpen(false);
-			setName("");
-			setSlug("");
-			setLogo("");
+			resetForm();
 		}
 
 		setIsSubmitting(false);
 	};
 
+	const handleOpenChange = (isOpen: boolean) => {
+		setOpen(isOpen);
+		if (!isOpen) {
+			resetForm();
+		}
+	};
+
 	return (
-		<Dialog open={open} onOpenChange={setOpen}>
+		<Dialog open={open} onOpenChange={handleOpenChange}>
 			<DialogTrigger asChild>{trigger}</DialogTrigger>
 			<DialogContent>
 				<DialogHeader>
@@ -586,12 +596,20 @@ function CreateOrganizationDialog({
 					</DialogDescription>
 				</DialogHeader>
 				<form onSubmit={handleSubmit} className="space-y-4">
+					{error && (
+						<div className="rounded-md bg-destructive/10 border border-destructive/20 p-3 text-sm text-destructive">
+							{error}
+						</div>
+					)}
 					<div className="space-y-2">
 						<Label htmlFor="org-name">Nombre</Label>
 						<Input
 							id="org-name"
 							value={name}
-							onChange={(e) => setName(e.target.value)}
+							onChange={(e) => {
+								setName(e.target.value);
+								setError(null);
+							}}
 							required
 							placeholder="Mi organización"
 						/>
@@ -606,7 +624,10 @@ function CreateOrganizationDialog({
 						<Input
 							id="org-slug"
 							value={slug}
-							onChange={(e) => setSlug(e.target.value)}
+							onChange={(e) => {
+								setSlug(e.target.value);
+								setError(null);
+							}}
 							placeholder="mi-organizacion"
 						/>
 						<p className="text-xs text-muted-foreground">
@@ -628,7 +649,7 @@ function CreateOrganizationDialog({
 						<Button
 							type="button"
 							variant="outline"
-							onClick={() => setOpen(false)}
+							onClick={() => handleOpenChange(false)}
 						>
 							Cancelar
 						</Button>

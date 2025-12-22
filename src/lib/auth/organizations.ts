@@ -23,6 +23,37 @@ const JSON_HEADERS = {
 	Accept: "application/json",
 };
 
+type ErrorResponse = {
+	code?: string;
+	message?: string;
+	error?: string;
+};
+
+// Map of error codes to user-friendly messages in Spanish
+const ERROR_MESSAGES: Record<string, string> = {
+	ORGANIZATION_ALREADY_EXISTS:
+		"Ya existe una organización con este slug. Por favor, elige otro.",
+	ORGANIZATION_NOT_FOUND: "La organización no fue encontrada.",
+	UNAUTHORIZED: "No tienes permisos para realizar esta acción.",
+	INVALID_INVITATION: "La invitación no es válida o ha expirado.",
+	MEMBER_ALREADY_EXISTS: "Este usuario ya es miembro de la organización.",
+};
+
+function extractErrorMessage(
+	body: ErrorResponse | null,
+	statusText: string,
+): string {
+	if (!body) return statusText || "Request failed";
+
+	// If we have a known error code, use the friendly message
+	if (body.code && ERROR_MESSAGES[body.code]) {
+		return ERROR_MESSAGES[body.code];
+	}
+
+	// Otherwise use the message from the response
+	return body.message || body.error || statusText || "Request failed";
+}
+
 async function http<T>(
 	path: string,
 	init?: RequestInit,
@@ -40,14 +71,15 @@ async function http<T>(
 
 		const body = (await response.json().catch(() => null)) as
 			| SuccessEnvelope<T>
+			| ErrorResponse
 			| T
 			| null;
 
 		if (!response.ok) {
-			const message =
-				(body as SuccessEnvelope<T>)?.message ||
-				response.statusText ||
-				"Request failed";
+			const message = extractErrorMessage(
+				body as ErrorResponse,
+				response.statusText,
+			);
 			return { data: null, error: message };
 		}
 
