@@ -1,3 +1,10 @@
+# [1.2.0](https://github.com/boletrics/partner/compare/v1.1.0...v1.2.0) (2025-12-22)
+
+
+### Features
+
+* **organizations:** implemented full crud for organizations management ([88432e0](https://github.com/boletrics/partner/commit/88432e06d754c5a5a2a51665c915b64769170e79))
+
 # [1.1.0](https://github.com/boletrics/partner/compare/v1.0.0...v1.1.0) (2025-12-22)
 
 
