@@ -1,3 +1,12 @@
+# [1.1.0](https://github.com/boletrics/partner/compare/v1.0.0...v1.1.0) (2025-12-22)
+
+
+### Features
+
+* Add comprehensive auth tests and utilities ([ac507af](https://github.com/boletrics/partner/commit/ac507af63f4643d495352625a84c8c5a3d4b9518))
+* Add user auth and dynamic sidebar info ([df5207a](https://github.com/boletrics/partner/commit/df5207a81745a593ce4ac70b6da2fb7328ef65c9))
+* Implement auth using better-auth and nanostores ([6c30205](https://github.com/boletrics/partner/commit/6c3020541207e2b34665eb9e3f61496fa581e4eb))
+
 # 1.0.0 (2025-12-19)
 
 
