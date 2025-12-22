@@ -130,7 +130,7 @@ export function EventsView() {
 	};
 
 	return (
-		<div className="p-4 md:p-6 space-y-6 min-w-0 w-full">
+		<div className="p-4 md:p-6 space-y-6 min-w-0 w-full max-w-full">
 			<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
 				<div className="min-w-0">
 					<h1 className="text-xl md:text-2xl font-bold tracking-tight">
@@ -157,7 +157,7 @@ export function EventsView() {
 				</TabsList>
 			</Tabs>
 
-			<Card className="overflow-hidden w-full">
+			<Card className="w-full max-w-full overflow-hidden">
 				<CardHeader>
 					<div className="flex flex-col sm:flex-row gap-4">
 						<div className="relative flex-1 min-w-0">
@@ -183,7 +183,7 @@ export function EventsView() {
 					</div>
 				</CardHeader>
 				<CardContent className="p-0 md:p-6 md:pt-0">
-					<div className="overflow-x-auto">
+					<div className="overflow-x-auto w-full">
 						<div className="rounded-md border min-w-[800px]">
 							<Table>
 								<TableHeader>
