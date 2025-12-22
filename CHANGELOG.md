@@ -1,3 +1,10 @@
+# [1.4.0](https://github.com/boletrics/partner/compare/v1.3.2...v1.4.0) (2025-12-22)
+
+
+### Features
+
+* **org:** show user-friendly validation errors for organization creation ([61c48d8](https://github.com/boletrics/partner/commit/61c48d879309169ec4efdbf75a0e4ff860b0c302))
+
 ## [1.3.2](https://github.com/boletrics/partner/compare/v1.3.1...v1.3.2) (2025-12-22)
 
 
