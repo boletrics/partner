@@ -51,6 +51,8 @@ import {
 	type NavigationView,
 } from "@/lib/navigation-store";
 import { usePathname } from "next/navigation";
+import { useAuthSession } from "@/lib/auth/useAuthSession";
+import { logout } from "@/lib/auth/actions";
 
 const mainNavItems = [
 	{
@@ -334,6 +336,29 @@ function NavSecondary({ items }: { items: typeof secondaryNavItems }) {
 
 function NavUser() {
 	const { setView } = useNavigationStore();
+	const { data: session, isPending } = useAuthSession();
+
+	const getUserInitials = (name: string) => {
+		return name
+			.split(" ")
+			.map((word) => word[0])
+			.join("")
+			.slice(0, 2)
+			.toUpperCase();
+	};
+
+	const handleLogout = async () => {
+		await logout();
+	};
+
+	const userName = isPending ? "Cargando..." : session?.user?.name || "Usuario";
+	const userEmail = isPending
+		? "..."
+		: session?.user?.email || "usuario@ejemplo.com";
+	const userImage = session?.user?.image || null;
+	const initials = session?.user?.name
+		? getUserInitials(session.user.name)
+		: "U";
 
 	return (
 		<SidebarMenu>
@@ -345,13 +370,15 @@ function NavUser() {
 							className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
 						>
 							<Avatar className="h-8 w-8 rounded-lg">
-								<AvatarImage src="/professional-avatar.png" alt="Usuario" />
-								<AvatarFallback className="rounded-lg">MG</AvatarFallback>
+								<AvatarImage src={userImage || undefined} alt={userName} />
+								<AvatarFallback className="rounded-lg">
+									{initials}
+								</AvatarFallback>
 							</Avatar>
 							<div className="grid flex-1 text-left text-sm leading-tight">
-								<span className="truncate font-semibold">María García</span>
+								<span className="truncate font-semibold">{userName}</span>
 								<span className="truncate text-xs text-muted-foreground">
-									maria@ocesa.com.mx
+									{userEmail}
 								</span>
 							</div>
 							<ChevronsUpDown className="ml-auto size-4" />
@@ -366,13 +393,15 @@ function NavUser() {
 						<DropdownMenuLabel className="p-0 font-normal">
 							<div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
 								<Avatar className="h-8 w-8 rounded-lg">
-									<AvatarImage src="/professional-avatar.png" alt="Usuario" />
-									<AvatarFallback className="rounded-lg">MG</AvatarFallback>
+									<AvatarImage src={userImage || undefined} alt={userName} />
+									<AvatarFallback className="rounded-lg">
+										{initials}
+									</AvatarFallback>
 								</Avatar>
 								<div className="grid flex-1 text-left text-sm leading-tight">
-									<span className="truncate font-semibold">María García</span>
+									<span className="truncate font-semibold">{userName}</span>
 									<span className="truncate text-xs text-muted-foreground">
-										maria@ocesa.com.mx
+										{userEmail}
 									</span>
 								</div>
 							</div>
@@ -387,7 +416,10 @@ function NavUser() {
 							Mi perfil
 						</DropdownMenuItem>
 						<DropdownMenuSeparator />
-						<DropdownMenuItem className="text-destructive">
+						<DropdownMenuItem
+							className="text-destructive cursor-pointer"
+							onClick={handleLogout}
+						>
 							<LogOut className="mr-2 h-4 w-4" />
 							Cerrar sesión
 						</DropdownMenuItem>
