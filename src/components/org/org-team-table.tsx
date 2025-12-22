@@ -283,7 +283,9 @@ export function OrgTeamTable() {
 		return null;
 	}
 
-	const pendingCount = invitations.length;
+	const pendingCount = invitations.filter(
+		(inv) => inv.status === "pending",
+	).length;
 
 	return (
 		<div className="space-y-6">
@@ -344,98 +346,100 @@ export function OrgTeamTable() {
 													</TableRow>
 												)}
 												{!isLoadingInvitations &&
-													invitations.map((invitation) => (
-														<TableRow key={invitation.id}>
-															<TableCell>
-																<div className="flex items-center gap-3">
-																	<Avatar className="h-8 w-8 shrink-0">
-																		<AvatarFallback className="text-xs">
-																			{invitation.email
-																				.split("@")[0]
-																				.slice(0, 2)
-																				.toUpperCase()}
-																		</AvatarFallback>
-																	</Avatar>
-																	<div className="min-w-0">
-																		<p className="font-medium truncate text-sm">
-																			{invitation.email}
-																		</p>
-																		{invitation.inviterName && (
-																			<p className="text-xs text-muted-foreground">
-																				Invitado por {invitation.inviterName}
+													invitations
+														.filter((inv) => inv.status === "pending")
+														.map((invitation) => (
+															<TableRow key={invitation.id}>
+																<TableCell>
+																	<div className="flex items-center gap-3">
+																		<Avatar className="h-8 w-8 shrink-0">
+																			<AvatarFallback className="text-xs">
+																				{invitation.email
+																					.split("@")[0]
+																					.slice(0, 2)
+																					.toUpperCase()}
+																			</AvatarFallback>
+																		</Avatar>
+																		<div className="min-w-0">
+																			<p className="font-medium truncate text-sm">
+																				{invitation.email}
 																			</p>
-																		)}
+																			{invitation.inviterName && (
+																				<p className="text-xs text-muted-foreground">
+																					Invitado por {invitation.inviterName}
+																				</p>
+																			)}
+																		</div>
 																	</div>
-																</div>
-															</TableCell>
-															<TableCell>
-																<Badge
-																	variant="outline"
-																	className={
-																		roleColors[invitation.role] ||
-																		roleColors.member
-																	}
-																>
-																	{roleLabels[invitation.role] ||
-																		invitation.role}
-																</Badge>
-															</TableCell>
-															<TableCell className="text-muted-foreground text-sm whitespace-nowrap">
-																{formatDateTime(invitation.createdAt)}
-															</TableCell>
-															<TableCell>
-																{isExpired(invitation.expiresAt) ? (
+																</TableCell>
+																<TableCell>
 																	<Badge
-																		variant="destructive"
-																		className="text-xs"
+																		variant="outline"
+																		className={
+																			roleColors[invitation.role] ||
+																			roleColors.member
+																		}
 																	>
-																		Expirada
+																		{roleLabels[invitation.role] ||
+																			invitation.role}
 																	</Badge>
-																) : (
-																	<span className="text-muted-foreground text-sm whitespace-nowrap">
-																		{formatDateTime(invitation.expiresAt)}
-																	</span>
-																)}
-															</TableCell>
-															<TableCell>
-																<div className="flex items-center gap-1">
-																	<Button
-																		variant="ghost"
-																		size="icon"
-																		className="h-8 w-8"
-																		onClick={() =>
-																			handleResendInvitation(invitation)
-																		}
-																		disabled={
-																			processingInvitationId === invitation.id
-																		}
-																		title="Reenviar invitación"
-																	>
-																		{processingInvitationId ===
-																		invitation.id ? (
-																			<RefreshCw className="h-4 w-4 animate-spin" />
-																		) : (
-																			<Send className="h-4 w-4" />
-																		)}
-																	</Button>
-																	<Button
-																		variant="ghost"
-																		size="icon"
-																		className="h-8 w-8 text-destructive hover:text-destructive"
-																		onClick={() =>
-																			handleCancelInvitation(invitation)
-																		}
-																		disabled={
-																			processingInvitationId === invitation.id
-																		}
-																		title="Cancelar invitación"
-																	>
-																		<XCircle className="h-4 w-4" />
-																	</Button>
-																</div>
-															</TableCell>
-														</TableRow>
-													))}
+																</TableCell>
+																<TableCell className="text-muted-foreground text-sm whitespace-nowrap">
+																	{formatDateTime(invitation.createdAt)}
+																</TableCell>
+																<TableCell>
+																	{isExpired(invitation.expiresAt) ? (
+																		<Badge
+																			variant="destructive"
+																			className="text-xs"
+																		>
+																			Expirada
+																		</Badge>
+																	) : (
+																		<span className="text-muted-foreground text-sm whitespace-nowrap">
+																			{formatDateTime(invitation.expiresAt)}
+																		</span>
+																	)}
+																</TableCell>
+																<TableCell>
+																	<div className="flex items-center gap-1">
+																		<Button
+																			variant="ghost"
+																			size="icon"
+																			className="h-8 w-8"
+																			onClick={() =>
+																				handleResendInvitation(invitation)
+																			}
+																			disabled={
+																				processingInvitationId === invitation.id
+																			}
+																			title="Reenviar invitación"
+																		>
+																			{processingInvitationId ===
+																			invitation.id ? (
+																				<RefreshCw className="h-4 w-4 animate-spin" />
+																			) : (
+																				<Send className="h-4 w-4" />
+																			)}
+																		</Button>
+																		<Button
+																			variant="ghost"
+																			size="icon"
+																			className="h-8 w-8 text-destructive hover:text-destructive"
+																			onClick={() =>
+																				handleCancelInvitation(invitation)
+																			}
+																			disabled={
+																				processingInvitationId === invitation.id
+																			}
+																			title="Cancelar invitación"
+																		>
+																			<XCircle className="h-4 w-4" />
+																		</Button>
+																	</div>
+																</TableCell>
+															</TableRow>
+														))}
 											</TableBody>
 										</Table>
 									</div>
