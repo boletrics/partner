@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
 	MoreHorizontal,
 	UserPlus,
@@ -43,84 +43,30 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
-import type { OrganizationMember, OrganizationRole } from "@/lib/org-store";
-
-interface TeamMember extends OrganizationMember {
-	name: string;
-	email: string;
-	avatar?: string;
-}
-
-const mockTeamMembers: TeamMember[] = [
-	{
-		id: "member-1",
-		userId: "user-1",
-		organizationId: "org-1",
-		role: "owner",
-		permissions: [],
-		status: "active",
-		invitedAt: "2024-01-15T00:00:00Z",
-		joinedAt: "2024-01-15T00:00:00Z",
-		name: "María García",
-		email: "maria@ocesa.com.mx",
-		avatar: "/professional-woman-avatar.png",
-	},
-	{
-		id: "member-2",
-		userId: "user-2",
-		organizationId: "org-1",
-		role: "admin",
-		permissions: [],
-		status: "active",
-		invitedAt: "2024-02-01T00:00:00Z",
-		joinedAt: "2024-02-03T00:00:00Z",
-		name: "Carlos Rodríguez",
-		email: "carlos@ocesa.com.mx",
-		avatar: "/professional-man-avatar.png",
-	},
-	{
-		id: "member-3",
-		userId: "user-3",
-		organizationId: "org-1",
-		role: "manager",
-		permissions: [],
-		status: "active",
-		invitedAt: "2024-03-15T00:00:00Z",
-		joinedAt: "2024-03-16T00:00:00Z",
-		name: "Ana López",
-		email: "ana@ocesa.com.mx",
-		avatar: "/professional-woman-avatar-2.png",
-	},
-	{
-		id: "member-4",
-		userId: "user-4",
-		organizationId: "org-1",
-		role: "staff",
-		permissions: [],
-		status: "active",
-		invitedAt: "2024-06-01T00:00:00Z",
-		joinedAt: "2024-06-02T00:00:00Z",
-		name: "Pedro Martínez",
-		email: "pedro@ocesa.com.mx",
-		avatar: "/professional-man-avatar-2.png",
-	},
-	{
-		id: "member-5",
-		userId: "user-5",
-		organizationId: "org-1",
-		role: "staff",
-		permissions: [],
-		status: "pending",
-		invitedAt: "2025-01-10T00:00:00Z",
-		name: "Laura Sánchez",
-		email: "laura@ocesa.com.mx",
-	},
-];
+import {
+	useOrgStore,
+	type OrganizationMember,
+	type OrganizationRole,
+} from "@/lib/org-store";
+import { listMembers, inviteMember } from "@/lib/auth/organizations";
+import {
+	Dialog,
+	DialogClose,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+	DialogTrigger,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { useToast } from "@/components/ui/use-toast";
 
 const roleLabels: Record<OrganizationRole, string> = {
 	owner: "Propietario",
 	admin: "Administrador",
 	manager: "Gerente",
+	member: "Miembro",
 	staff: "Personal",
 	readonly: "Solo lectura",
 };
@@ -129,29 +75,104 @@ const roleColors: Record<OrganizationRole, string> = {
 	owner: "bg-amber-500/10 text-amber-600 border-amber-500/20",
 	admin: "bg-purple-500/10 text-purple-600 border-purple-500/20",
 	manager: "bg-blue-500/10 text-blue-600 border-blue-500/20",
+	member: "bg-blue-500/10 text-blue-600 border-blue-500/20",
 	staff: "bg-green-500/10 text-green-600 border-green-500/20",
 	readonly: "bg-gray-500/10 text-gray-600 border-gray-500/20",
 };
 
 export function OrgTeamTable() {
+	const { toast } = useToast();
+	const { currentOrg, members, setMembers } = useOrgStore();
 	const [searchQuery, setSearchQuery] = useState("");
 	const [roleFilter, setRoleFilter] = useState<string>("all");
+	const [isLoading, setIsLoading] = useState(false);
+	const [isInviting, setIsInviting] = useState(false);
+	const [inviteEmail, setInviteEmail] = useState("");
+	const [inviteRole, setInviteRole] = useState<OrganizationRole>("member");
+	const [openInvite, setOpenInvite] = useState(false);
 
-	const filteredMembers = mockTeamMembers.filter((member) => {
-		const matchesSearch =
-			member.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-			member.email.toLowerCase().includes(searchQuery.toLowerCase());
-		const matchesRole = roleFilter === "all" || member.role === roleFilter;
-		return matchesSearch && matchesRole;
-	});
+	useEffect(() => {
+		let cancelled = false;
+		async function loadMembers() {
+			if (!currentOrg) return;
+			setIsLoading(true);
+			const result = await listMembers(currentOrg.id);
+			if (cancelled) return;
+			if (result.data) {
+				setMembers(result.data);
+			} else if (result.error) {
+				toast({
+					variant: "destructive",
+					title: "No se pudieron cargar los miembros",
+					description: result.error,
+				});
+			}
+			setIsLoading(false);
+		}
+		loadMembers();
+		return () => {
+			cancelled = true;
+		};
+	}, [currentOrg?.id, setMembers, toast]);
 
-	const formatDate = (dateString: string) => {
+	const filteredMembers = useMemo(() => {
+		const currentMembers = members.filter(
+			(member) => member.organizationId === currentOrg?.id,
+		);
+
+		return currentMembers.filter((member) => {
+			const nameMatch = (member.name || member.email || member.userId || "")
+				.toLowerCase()
+				.includes(searchQuery.toLowerCase());
+			const matchesRole = roleFilter === "all" || member.role === roleFilter;
+			return nameMatch && matchesRole;
+		});
+	}, [currentOrg?.id, members, roleFilter, searchQuery]);
+
+	const formatDate = (dateString?: string) => {
+		if (!dateString) return "—";
 		return new Date(dateString).toLocaleDateString("es-MX", {
 			day: "numeric",
 			month: "short",
 			year: "numeric",
 		});
 	};
+
+	const handleInvite = async () => {
+		if (!currentOrg || !inviteEmail) return;
+		setIsInviting(true);
+		const result = await inviteMember({
+			email: inviteEmail,
+			role: inviteRole,
+			organizationId: currentOrg.id,
+		});
+
+		if (result.error) {
+			toast({
+				variant: "destructive",
+				title: "No se pudo enviar la invitación",
+				description: result.error,
+			});
+		} else {
+			toast({
+				title: "Invitación enviada",
+				description: `${inviteEmail} fue invitado como ${roleLabels[inviteRole]}.`,
+			});
+			// Refresh members to reflect pending invitations if the API returns them
+			const reload = await listMembers(currentOrg.id);
+			if (reload.data) {
+				setMembers(reload.data);
+			}
+			setInviteEmail("");
+			setInviteRole("member");
+			setOpenInvite(false);
+		}
+		setIsInviting(false);
+	};
+
+	if (!currentOrg) {
+		return null;
+	}
 
 	return (
 		<Card className="overflow-hidden">
@@ -160,17 +181,84 @@ export function OrgTeamTable() {
 					<div className="min-w-0">
 						<CardTitle>Miembros del Equipo</CardTitle>
 						<CardDescription>
-							Gestiona los accesos y permisos de tu equipo
+							Gestiona los accesos y permisos de tu organización
 						</CardDescription>
 					</div>
-					<Button className="gap-2">
-						<UserPlus className="h-4 w-4" />
-						Invitar miembro
-					</Button>
+					<Dialog open={openInvite} onOpenChange={setOpenInvite}>
+						<DialogTrigger asChild>
+							<Button className="gap-2">
+								<UserPlus className="h-4 w-4" />
+								Invitar miembro
+							</Button>
+						</DialogTrigger>
+						<DialogContent>
+							<DialogHeader>
+								<DialogTitle>Invitar miembro</DialogTitle>
+								<DialogDescription>
+									Envía una invitación por correo para que se una a la
+									organización.
+								</DialogDescription>
+							</DialogHeader>
+							<div className="space-y-4">
+								<div className="space-y-2">
+									<Label htmlFor="invite-email">Correo electrónico</Label>
+									<Input
+										id="invite-email"
+										type="email"
+										required
+										value={inviteEmail}
+										onChange={(e) => setInviteEmail(e.target.value)}
+										placeholder="persona@empresa.com"
+									/>
+								</div>
+								<div className="space-y-2">
+									<Label>Rol</Label>
+									<Select
+										value={inviteRole}
+										onValueChange={(value) =>
+											setInviteRole(value as OrganizationRole)
+										}
+									>
+										<SelectTrigger>
+											<SelectValue placeholder="Selecciona un rol" />
+										</SelectTrigger>
+										<SelectContent>
+											<SelectItem value="owner">Propietario</SelectItem>
+											<SelectItem value="admin">Administrador</SelectItem>
+											<SelectItem value="manager">Gerente</SelectItem>
+											<SelectItem value="member">Miembro</SelectItem>
+											<SelectItem value="staff">Personal</SelectItem>
+											<SelectItem value="readonly">Solo lectura</SelectItem>
+										</SelectContent>
+									</Select>
+								</div>
+							</div>
+							<DialogFooter>
+								<DialogClose asChild>
+									<Button
+										type="button"
+										variant="outline"
+										onClick={() => {
+											setInviteEmail("");
+											setInviteRole("member");
+										}}
+									>
+										Cancelar
+									</Button>
+								</DialogClose>
+								<Button
+									type="button"
+									onClick={handleInvite}
+									disabled={isInviting || !inviteEmail}
+								>
+									{isInviting ? "Enviando..." : "Enviar invitación"}
+								</Button>
+							</DialogFooter>
+						</DialogContent>
+					</Dialog>
 				</div>
 			</CardHeader>
 			<CardContent>
-				{/* Filters */}
 				<div className="flex flex-col sm:flex-row gap-4 mb-6">
 					<div className="relative flex-1">
 						<Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -190,6 +278,7 @@ export function OrgTeamTable() {
 							<SelectItem value="owner">Propietario</SelectItem>
 							<SelectItem value="admin">Administrador</SelectItem>
 							<SelectItem value="manager">Gerente</SelectItem>
+							<SelectItem value="member">Miembro</SelectItem>
 							<SelectItem value="staff">Personal</SelectItem>
 							<SelectItem value="readonly">Solo lectura</SelectItem>
 						</SelectContent>
@@ -209,89 +298,105 @@ export function OrgTeamTable() {
 								</TableRow>
 							</TableHeader>
 							<TableBody>
-								{filteredMembers.map((member) => (
-									<TableRow key={member.id}>
-										<TableCell>
-											<div className="flex items-center gap-3">
-												<Avatar className="h-9 w-9 shrink-0">
-													<AvatarImage
-														src={member.avatar || "/placeholder.svg"}
-														alt={member.name}
-													/>
-													<AvatarFallback>
-														{member.name
-															.split(" ")
-															.map((n) => n[0])
-															.join("")}
-													</AvatarFallback>
-												</Avatar>
-												<div className="min-w-0">
-													<p className="font-medium truncate">{member.name}</p>
-													<p className="text-sm text-muted-foreground truncate">
-														{member.email}
-													</p>
-												</div>
-											</div>
-										</TableCell>
-										<TableCell>
-											<Badge
-												variant="outline"
-												className={roleColors[member.role]}
-											>
-												{roleLabels[member.role]}
-											</Badge>
-										</TableCell>
-										<TableCell>
-											<Badge
-												variant={
-													member.status === "active" ? "default" : "secondary"
-												}
-											>
-												{member.status === "active" ? "Activo" : "Pendiente"}
-											</Badge>
-										</TableCell>
-										<TableCell className="text-muted-foreground whitespace-nowrap">
-											{member.joinedAt ? formatDate(member.joinedAt) : "—"}
-										</TableCell>
-										<TableCell>
-											<DropdownMenu>
-												<DropdownMenuTrigger asChild>
-													<Button
-														variant="ghost"
-														size="icon"
-														className="h-8 w-8"
-													>
-														<MoreHorizontal className="h-4 w-4" />
-														<span className="sr-only">Acciones</span>
-													</Button>
-												</DropdownMenuTrigger>
-												<DropdownMenuContent align="end">
-													<DropdownMenuLabel>Acciones</DropdownMenuLabel>
-													<DropdownMenuSeparator />
-													<DropdownMenuItem>
-														<Mail className="mr-2 h-4 w-4" />
-														Enviar mensaje
-													</DropdownMenuItem>
-													<DropdownMenuItem>
-														<Shield className="mr-2 h-4 w-4" />
-														Cambiar rol
-													</DropdownMenuItem>
-													<DropdownMenuSeparator />
-													<DropdownMenuItem className="text-destructive">
-														<UserX className="mr-2 h-4 w-4" />
-														Remover del equipo
-													</DropdownMenuItem>
-												</DropdownMenuContent>
-											</DropdownMenu>
+								{isLoading && (
+									<TableRow>
+										<TableCell
+											colSpan={5}
+											className="text-center text-muted-foreground"
+										>
+											Cargando miembros...
 										</TableCell>
 									</TableRow>
-								))}
+								)}
+								{!isLoading &&
+									filteredMembers.map((member) => (
+										<TableRow key={member.id}>
+											<TableCell>
+												<div className="flex items-center gap-3">
+													<Avatar className="h-9 w-9 shrink-0">
+														<AvatarImage
+															src={member.avatar || "/placeholder.svg"}
+															alt={member.name ?? member.email ?? member.userId}
+														/>
+														<AvatarFallback>
+															{(member.name || member.email || "??")
+																.split(" ")
+																.map((n) => n[0])
+																.join("")
+																.toUpperCase()}
+														</AvatarFallback>
+													</Avatar>
+													<div className="min-w-0">
+														<p className="font-medium truncate">
+															{member.name || member.email || member.userId}
+														</p>
+														<p className="text-sm text-muted-foreground truncate">
+															{member.email || "Correo no disponible"}
+														</p>
+													</div>
+												</div>
+											</TableCell>
+											<TableCell>
+												<Badge
+													variant="outline"
+													className={
+														roleColors[member.role] || roleColors.member
+													}
+												>
+													{roleLabels[member.role] || member.role}
+												</Badge>
+											</TableCell>
+											<TableCell>
+												<Badge
+													variant={
+														member.status === "active" ? "default" : "secondary"
+													}
+												>
+													{member.status === "active" ? "Activo" : "Pendiente"}
+												</Badge>
+											</TableCell>
+											<TableCell className="text-muted-foreground whitespace-nowrap">
+												{formatDate(member.joinedAt || member.invitedAt)}
+											</TableCell>
+											<TableCell>
+												<DropdownMenu>
+													<DropdownMenuTrigger asChild>
+														<Button
+															variant="ghost"
+															size="icon"
+															className="h-8 w-8"
+														>
+															<MoreHorizontal className="h-4 w-4" />
+															<span className="sr-only">Acciones</span>
+														</Button>
+													</DropdownMenuTrigger>
+													<DropdownMenuContent align="end">
+														<DropdownMenuLabel>Acciones</DropdownMenuLabel>
+														<DropdownMenuSeparator />
+														<DropdownMenuItem>
+															<Mail className="mr-2 h-4 w-4" />
+															Enviar mensaje
+														</DropdownMenuItem>
+														<DropdownMenuItem>
+															<Shield className="mr-2 h-4 w-4" />
+															Cambiar rol
+														</DropdownMenuItem>
+														<DropdownMenuSeparator />
+														<DropdownMenuItem className="text-destructive">
+															<UserX className="mr-2 h-4 w-4" />
+															Remover del equipo
+														</DropdownMenuItem>
+													</DropdownMenuContent>
+												</DropdownMenu>
+											</TableCell>
+										</TableRow>
+									))}
 							</TableBody>
 						</Table>
 					</div>
 				</div>
 
-				{filteredMembers.length === 0 && (
+				{!isLoading && filteredMembers.length === 0 && (
 					<div className="text-center py-8 text-muted-foreground">
 						No se encontraron miembros con los filtros seleccionados
 					</div>

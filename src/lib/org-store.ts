@@ -3,31 +3,32 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-// Organization Types
+// Organization Types (aligned with Better Auth organization plugin)
 export interface Organization {
 	id: string;
 	name: string;
 	slug: string;
-	logo?: string;
-	description?: string;
-	website?: string;
-	email: string;
-	phone?: string;
-	address?: OrganizationAddress;
-	taxId?: string; // RFC in Mexico
-	status: "pending" | "active" | "suspended" | "inactive";
-	plan: "starter" | "professional" | "enterprise";
-	settings: OrganizationSettings;
-	createdAt: string;
-	updatedAt: string;
+	logo?: string | null;
+	description?: string | null;
+	website?: string | null;
+	email?: string | null;
+	phone?: string | null;
+	address?: OrganizationAddress | null;
+	taxId?: string | null; // RFC in Mexico
+	status?: "pending" | "active" | "suspended" | "inactive";
+	plan?: "starter" | "professional" | "enterprise";
+	settings?: OrganizationSettings;
+	metadata?: Record<string, unknown> | null;
+	createdAt?: string;
+	updatedAt?: string;
 }
 
 export interface OrganizationAddress {
-	street: string;
-	city: string;
-	state: string;
-	postalCode: string;
-	country: string;
+	street?: string | null;
+	city?: string | null;
+	state?: string | null;
+	postalCode?: string | null;
+	country?: string | null;
 }
 
 export interface OrganizationSettings {
@@ -48,6 +49,20 @@ export interface OrganizationSettings {
 	};
 }
 
+export const DEFAULT_ORG_SETTINGS: OrganizationSettings = {
+	currency: "MXN",
+	timezone: "America/Mexico_City",
+	language: "es",
+	commissionRate: 0,
+	payoutSchedule: "monthly",
+	notificationPreferences: {
+		email: true,
+		sms: false,
+		push: false,
+	},
+	branding: {},
+};
+
 // Organization Member Types
 export interface OrganizationMember {
 	id: string;
@@ -55,15 +70,19 @@ export interface OrganizationMember {
 	organizationId: string;
 	role: OrganizationRole;
 	permissions: Permission[];
-	status: "pending" | "active" | "suspended";
-	invitedAt: string;
+	status?: "pending" | "active" | "suspended";
+	invitedAt?: string;
 	joinedAt?: string;
+	email?: string | null;
+	name?: string | null;
+	avatar?: string | null;
 }
 
 export type OrganizationRole =
 	| "owner"
 	| "admin"
 	| "manager"
+	| "member"
 	| "staff"
 	| "readonly";
 
@@ -134,6 +153,7 @@ export const rolePermissions: Record<OrganizationRole, Permission[]> = {
 		"team:invite",
 		"settings:read",
 	],
+	member: ["events:read", "orders:read", "analytics:read"],
 	staff: ["events:read", "tickets:scan", "orders:read"],
 	readonly: ["events:read", "orders:read", "analytics:read"],
 };
@@ -141,31 +161,51 @@ export const rolePermissions: Record<OrganizationRole, Permission[]> = {
 // Organization Store
 interface OrgStore {
 	currentOrg: Organization | null;
+	currentUserId: string | null;
 	organizations: Organization[];
 	members: OrganizationMember[];
+	isLoading: boolean;
+	error: string | null;
 	setCurrentOrg: (org: Organization | null) => void;
+	setCurrentOrgById: (id: string | null) => void;
+	setCurrentUserId: (userId: string | null) => void;
 	setOrganizations: (orgs: Organization[]) => void;
 	addOrganization: (org: Organization) => void;
 	updateOrganization: (id: string, updates: Partial<Organization>) => void;
 	setMembers: (members: OrganizationMember[]) => void;
+	setMembersForOrg: (
+		organizationId: string,
+		members: OrganizationMember[],
+	) => void;
+	setLoading: (isLoading: boolean) => void;
+	setError: (error: string | null) => void;
 	hasPermission: (permission: Permission) => boolean;
 	getCurrentMember: () => OrganizationMember | null;
 }
-
-// Mock current user ID (in real app, this would come from auth)
-const MOCK_CURRENT_USER_ID = "user-1";
 
 export const useOrgStore = create<OrgStore>()(
 	persist(
 		(set, get) => ({
 			currentOrg: null,
+			currentUserId: null,
 			organizations: [],
 			members: [],
+			isLoading: false,
+			error: null,
 			setCurrentOrg: (org) => set({ currentOrg: org }),
+			setCurrentOrgById: (id) =>
+				set((state) => ({
+					currentOrg:
+						id !== null
+							? state.organizations.find((org) => org.id === id) || null
+							: null,
+				})),
+			setCurrentUserId: (userId) => set({ currentUserId: userId }),
 			setOrganizations: (orgs) => set({ organizations: orgs }),
 			addOrganization: (org) =>
 				set((state) => ({
 					organizations: [...state.organizations, org],
+					currentOrg: org,
 				})),
 			updateOrganization: (id, updates) =>
 				set((state) => ({
@@ -184,19 +224,29 @@ export const useOrgStore = create<OrgStore>()(
 							: state.currentOrg,
 				})),
 			setMembers: (members) => set({ members }),
+			setMembersForOrg: (organizationId, members) =>
+				set((state) => ({
+					members: [
+						...state.members.filter(
+							(member) => member.organizationId !== organizationId,
+						),
+						...members,
+					],
+				})),
+			setLoading: (isLoading) => set({ isLoading }),
+			setError: (error) => set({ error }),
 			hasPermission: (permission) => {
 				const member = get().getCurrentMember();
 				if (!member) return false;
 				return member.permissions.includes(permission);
 			},
 			getCurrentMember: () => {
-				const { currentOrg, members } = get();
+				const { currentOrg, members, currentUserId } = get();
 				if (!currentOrg) return null;
 				return (
 					members.find(
 						(m) =>
-							m.organizationId === currentOrg.id &&
-							m.userId === MOCK_CURRENT_USER_ID,
+							m.organizationId === currentOrg.id && m.userId === currentUserId,
 					) || null
 				);
 			},

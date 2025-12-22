@@ -15,6 +15,7 @@ export type Session = {
 		expiresAt: Date;
 		createdAt: Date;
 		updatedAt: Date;
+		activeOrganizationId?: string;
 		ipAddress?: string;
 		userAgent?: string;
 	};

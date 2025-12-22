@@ -12,6 +12,7 @@ vi.mock("better-auth/client", () => ({
 
 vi.mock("better-auth/client/plugins", () => ({
 	jwtClient: vi.fn(() => ({})),
+	organizationClient: vi.fn(() => ({})),
 }));
 
 vi.mock("./config", () => ({

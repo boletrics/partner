@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
 	Building2,
 	Globe,
@@ -30,11 +30,16 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
-import { useOrgStore } from "@/lib/org-store";
+import { DEFAULT_ORG_SETTINGS, useOrgStore } from "@/lib/org-store";
 
 export function OrgSettingsForm() {
 	const { currentOrg, updateOrganization } = useOrgStore();
 	const [isSaving, setIsSaving] = useState(false);
+
+	const settings = useMemo(
+		() => currentOrg?.settings ?? DEFAULT_ORG_SETTINGS,
+		[currentOrg?.settings],
+	);
 
 	const handleSave = async () => {
 		setIsSaving(true);
@@ -91,7 +96,7 @@ export function OrgSettingsForm() {
 							<div className="grid gap-4 sm:grid-cols-2">
 								<div className="space-y-2">
 									<Label htmlFor="name">Nombre de la organización</Label>
-									<Input id="name" defaultValue={currentOrg.name} />
+									<Input id="name" defaultValue={currentOrg.name ?? ""} />
 								</div>
 								<div className="space-y-2">
 									<Label htmlFor="slug">URL personalizada</Label>
@@ -101,7 +106,7 @@ export function OrgSettingsForm() {
 										</span>
 										<Input
 											id="slug"
-											defaultValue={currentOrg.slug}
+											defaultValue={currentOrg.slug ?? ""}
 											className="rounded-l-none"
 										/>
 									</div>
@@ -112,7 +117,7 @@ export function OrgSettingsForm() {
 								<Label htmlFor="description">Descripción</Label>
 								<Textarea
 									id="description"
-									defaultValue={currentOrg.description}
+									defaultValue={currentOrg.description ?? ""}
 									rows={3}
 								/>
 							</div>
@@ -123,12 +128,12 @@ export function OrgSettingsForm() {
 									<Input
 										id="email"
 										type="email"
-										defaultValue={currentOrg.email}
+										defaultValue={currentOrg.email ?? ""}
 									/>
 								</div>
 								<div className="space-y-2">
 									<Label htmlFor="phone">Teléfono</Label>
-									<Input id="phone" defaultValue={currentOrg.phone} />
+									<Input id="phone" defaultValue={currentOrg.phone ?? ""} />
 								</div>
 							</div>
 
@@ -137,7 +142,7 @@ export function OrgSettingsForm() {
 								<Input
 									id="website"
 									type="url"
-									defaultValue={currentOrg.website}
+									defaultValue={currentOrg.website ?? ""}
 								/>
 							</div>
 
@@ -150,30 +155,33 @@ export function OrgSettingsForm() {
 										<Label htmlFor="street">Calle y número</Label>
 										<Input
 											id="street"
-											defaultValue={currentOrg.address?.street}
+											defaultValue={currentOrg.address?.street ?? ""}
 										/>
 									</div>
 									<div className="space-y-2">
 										<Label htmlFor="city">Ciudad</Label>
-										<Input id="city" defaultValue={currentOrg.address?.city} />
+										<Input
+											id="city"
+											defaultValue={currentOrg.address?.city ?? ""}
+										/>
 									</div>
 									<div className="space-y-2">
 										<Label htmlFor="state">Estado</Label>
 										<Input
 											id="state"
-											defaultValue={currentOrg.address?.state}
+											defaultValue={currentOrg.address?.state ?? ""}
 										/>
 									</div>
 									<div className="space-y-2">
 										<Label htmlFor="postalCode">Código postal</Label>
 										<Input
 											id="postalCode"
-											defaultValue={currentOrg.address?.postalCode}
+											defaultValue={currentOrg.address?.postalCode ?? ""}
 										/>
 									</div>
 									<div className="space-y-2">
 										<Label htmlFor="taxId">RFC</Label>
-										<Input id="taxId" defaultValue={currentOrg.taxId} />
+										<Input id="taxId" defaultValue={currentOrg.taxId ?? ""} />
 									</div>
 								</div>
 							</div>
@@ -207,7 +215,7 @@ export function OrgSettingsForm() {
 									<div>
 										<p className="font-medium">Plan actual</p>
 										<p className="text-2xl font-bold capitalize">
-											{currentOrg.plan}
+											{currentOrg.plan ?? "starter"}
 										</p>
 									</div>
 									<Button variant="outline">Cambiar plan</Button>
@@ -217,7 +225,7 @@ export function OrgSettingsForm() {
 							<div className="grid gap-4 sm:grid-cols-2">
 								<div className="space-y-2">
 									<Label htmlFor="currency">Moneda</Label>
-									<Select defaultValue={currentOrg.settings.currency}>
+									<Select defaultValue={settings.currency}>
 										<SelectTrigger>
 											<SelectValue />
 										</SelectTrigger>
@@ -229,7 +237,7 @@ export function OrgSettingsForm() {
 								</div>
 								<div className="space-y-2">
 									<Label htmlFor="payout">Frecuencia de pagos</Label>
-									<Select defaultValue={currentOrg.settings.payoutSchedule}>
+									<Select defaultValue={settings.payoutSchedule}>
 										<SelectTrigger>
 											<SelectValue />
 										</SelectTrigger>
@@ -252,7 +260,7 @@ export function OrgSettingsForm() {
 										</p>
 									</div>
 									<p className="text-2xl font-bold">
-										{currentOrg.settings.commissionRate}%
+										{settings.commissionRate}%
 									</p>
 								</div>
 							</div>
@@ -290,9 +298,7 @@ export function OrgSettingsForm() {
 										</p>
 									</div>
 									<Switch
-										defaultChecked={
-											currentOrg.settings.notificationPreferences.email
-										}
+										defaultChecked={settings.notificationPreferences.email}
 									/>
 								</div>
 								<Separator />
@@ -304,9 +310,7 @@ export function OrgSettingsForm() {
 										</p>
 									</div>
 									<Switch
-										defaultChecked={
-											currentOrg.settings.notificationPreferences.sms
-										}
+										defaultChecked={settings.notificationPreferences.sms}
 									/>
 								</div>
 								<Separator />
@@ -318,9 +322,7 @@ export function OrgSettingsForm() {
 										</p>
 									</div>
 									<Switch
-										defaultChecked={
-											currentOrg.settings.notificationPreferences.push
-										}
+										defaultChecked={settings.notificationPreferences.push}
 									/>
 								</div>
 							</div>
@@ -356,15 +358,11 @@ export function OrgSettingsForm() {
 										<Input
 											id="primaryColor"
 											type="color"
-											defaultValue={
-												currentOrg.settings.branding.primaryColor || "#E31837"
-											}
+											defaultValue={settings.branding.primaryColor || "#E31837"}
 											className="w-12 h-10 p-1"
 										/>
 										<Input
-											defaultValue={
-												currentOrg.settings.branding.primaryColor || "#E31837"
-											}
+											defaultValue={settings.branding.primaryColor || "#E31837"}
 											className="flex-1"
 										/>
 									</div>
@@ -376,13 +374,13 @@ export function OrgSettingsForm() {
 											id="secondaryColor"
 											type="color"
 											defaultValue={
-												currentOrg.settings.branding.secondaryColor || "#1E3A8A"
+												settings.branding.secondaryColor || "#1E3A8A"
 											}
 											className="w-12 h-10 p-1"
 										/>
 										<Input
 											defaultValue={
-												currentOrg.settings.branding.secondaryColor || "#1E3A8A"
+												settings.branding.secondaryColor || "#1E3A8A"
 											}
 											className="flex-1"
 										/>
@@ -395,7 +393,7 @@ export function OrgSettingsForm() {
 								<Input
 									id="customDomain"
 									placeholder="eventos.tudominio.com"
-									defaultValue={currentOrg.settings.branding.customDomain}
+									defaultValue={settings.branding.customDomain ?? ""}
 								/>
 								<p className="text-sm text-muted-foreground">
 									Disponible en el plan Enterprise

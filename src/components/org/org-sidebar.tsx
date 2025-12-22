@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import {
 	LayoutDashboard,
 	Calendar,
@@ -53,6 +54,25 @@ import {
 import { usePathname } from "next/navigation";
 import { useAuthSession } from "@/lib/auth/useAuthSession";
 import { logout } from "@/lib/auth/actions";
+import {
+	createOrganization,
+	setActiveOrganization,
+} from "@/lib/auth/organizations";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+	DialogTrigger,
+} from "@/components/ui/dialog";
+import { Separator } from "@/components/ui/separator";
+import { useToast } from "@/components/ui/use-toast";
+import type React from "react";
+import { Button } from "@/components/ui/button";
 
 const mainNavItems = [
 	{
@@ -124,7 +144,10 @@ const secondaryNavItems = [
 ];
 
 function OrgSwitcher() {
-	const { currentOrg, organizations, setCurrentOrg } = useOrgStore();
+	const { toast } = useToast();
+	const { currentOrg, organizations, setCurrentOrg, addOrganization } =
+		useOrgStore();
+	const [isSwitching, setIsSwitching] = useState(false);
 	const activeOrgs = organizations.filter((org) => org.status === "active");
 
 	const getOrgInitials = (name: string) => {
@@ -134,6 +157,28 @@ function OrgSwitcher() {
 			.join("")
 			.slice(0, 2)
 			.toUpperCase();
+	};
+
+	const handleSwitch = async (orgId: string) => {
+		if (isSwitching) return;
+		setIsSwitching(true);
+		const org = organizations.find((o) => o.id === orgId);
+		const result = await setActiveOrganization(orgId);
+
+		if (result.error || !org) {
+			toast({
+				variant: "destructive",
+				title: "No se pudo cambiar de organización",
+				description: result.error ?? "Intenta de nuevo.",
+			});
+		} else {
+			setCurrentOrg(org);
+			toast({
+				title: "Organización activa actualizada",
+				description: `${org.name} ahora es tu organización activa.`,
+			});
+		}
+		setIsSwitching(false);
 	};
 
 	return (
@@ -146,7 +191,7 @@ function OrgSwitcher() {
 					<Avatar className="h-8 w-8 rounded-lg">
 						<AvatarImage
 							src={currentOrg?.logo || "/placeholder.svg"}
-							alt={currentOrg?.name}
+							alt={currentOrg?.name || "Organización"}
 						/>
 						<AvatarFallback className="rounded-lg bg-primary text-primary-foreground text-xs">
 							{currentOrg ? getOrgInitials(currentOrg.name) : "?"}
@@ -157,7 +202,7 @@ function OrgSwitcher() {
 							{currentOrg?.name || "Seleccionar"}
 						</span>
 						<span className="truncate text-xs text-muted-foreground capitalize">
-							Plan {currentOrg?.plan}
+							{currentOrg?.plan ? `Plan ${currentOrg.plan}` : "Sin plan"}
 						</span>
 					</div>
 					<ChevronsUpDown className="ml-auto size-4" />
@@ -175,8 +220,9 @@ function OrgSwitcher() {
 				{activeOrgs.map((org) => (
 					<DropdownMenuItem
 						key={org.id}
-						onClick={() => setCurrentOrg(org)}
+						onClick={() => handleSwitch(org.id)}
 						className="gap-2 p-2"
+						disabled={isSwitching}
 					>
 						<Avatar className="h-6 w-6 rounded-md">
 							<AvatarImage
@@ -194,12 +240,21 @@ function OrgSwitcher() {
 					</DropdownMenuItem>
 				))}
 				<DropdownMenuSeparator />
-				<DropdownMenuItem className="gap-2 p-2">
-					<div className="flex h-6 w-6 items-center justify-center rounded-md border bg-background">
-						<Plus className="h-4 w-4" />
-					</div>
-					<span className="font-medium">Nueva organización</span>
-				</DropdownMenuItem>
+				<CreateOrganizationDialog
+					trigger={
+						<DropdownMenuItem className="gap-2 p-2">
+							<div className="flex h-6 w-6 items-center justify-center rounded-md border bg-background">
+								<Plus className="h-4 w-4" />
+							</div>
+							<span className="font-medium">Nueva organización</span>
+						</DropdownMenuItem>
+					}
+					onCreated={(org) => {
+						if (!org) return;
+						addOrganization(org);
+						setCurrentOrg(org);
+					}}
+				/>
 			</DropdownMenuContent>
 		</DropdownMenu>
 	);
@@ -337,6 +392,7 @@ function NavSecondary({ items }: { items: typeof secondaryNavItems }) {
 function NavUser() {
 	const { setView } = useNavigationStore();
 	const { data: session, isPending } = useAuthSession();
+	const { error } = useOrgStore();
 
 	const getUserInitials = (name: string) => {
 		return name
@@ -401,7 +457,7 @@ function NavUser() {
 								<div className="grid flex-1 text-left text-sm leading-tight">
 									<span className="truncate font-semibold">{userName}</span>
 									<span className="truncate text-xs text-muted-foreground">
-										{userEmail}
+										{error ? "Sesión limitada" : userEmail}
 									</span>
 								</div>
 							</div>
@@ -452,5 +508,133 @@ export function OrgSidebar() {
 			</SidebarFooter>
 			<SidebarRail />
 		</Sidebar>
+	);
+}
+
+function slugify(value: string) {
+	return value
+		.toLowerCase()
+		.trim()
+		.replace(/[^a-z0-9]+/g, "-")
+		.replace(/^-+|-+$/g, "");
+}
+
+function CreateOrganizationDialog({
+	trigger,
+	onCreated,
+}: {
+	trigger: React.ReactNode;
+	onCreated: (
+		org: Awaited<ReturnType<typeof createOrganization>>["data"],
+	) => void;
+}) {
+	const { toast } = useToast();
+	const [open, setOpen] = useState(false);
+	const [name, setName] = useState("");
+	const [slug, setSlug] = useState("");
+	const [logo, setLogo] = useState("");
+	const [isSubmitting, setIsSubmitting] = useState(false);
+
+	const derivedSlug = useMemo(
+		() => (slug ? slugify(slug) : slugify(name)),
+		[name, slug],
+	);
+
+	const handleSubmit = async (event: React.FormEvent) => {
+		event.preventDefault();
+		if (isSubmitting) return;
+		setIsSubmitting(true);
+
+		const result = await createOrganization({
+			name,
+			slug: derivedSlug,
+			logo: logo || undefined,
+		});
+
+		if (result.error || !result.data) {
+			toast({
+				variant: "destructive",
+				title: "No se pudo crear la organización",
+				description: result.error || "Intenta nuevamente más tarde.",
+			});
+		} else {
+			onCreated(result.data);
+			toast({
+				title: "Organización creada",
+				description: `${result.data.name} ha sido creada.`,
+			});
+			setOpen(false);
+			setName("");
+			setSlug("");
+			setLogo("");
+		}
+
+		setIsSubmitting(false);
+	};
+
+	return (
+		<Dialog open={open} onOpenChange={setOpen}>
+			<DialogTrigger asChild>{trigger}</DialogTrigger>
+			<DialogContent>
+				<DialogHeader>
+					<DialogTitle>Nueva organización</DialogTitle>
+					<DialogDescription>
+						Crea una organización para gestionar tus eventos y equipo.
+					</DialogDescription>
+				</DialogHeader>
+				<form onSubmit={handleSubmit} className="space-y-4">
+					<div className="space-y-2">
+						<Label htmlFor="org-name">Nombre</Label>
+						<Input
+							id="org-name"
+							value={name}
+							onChange={(e) => setName(e.target.value)}
+							required
+							placeholder="Mi organización"
+						/>
+					</div>
+					<div className="space-y-2">
+						<div className="flex items-center justify-between">
+							<Label htmlFor="org-slug">Slug</Label>
+							<span className="text-xs text-muted-foreground">
+								Se usará en la URL
+							</span>
+						</div>
+						<Input
+							id="org-slug"
+							value={slug}
+							onChange={(e) => setSlug(e.target.value)}
+							placeholder="mi-organizacion"
+						/>
+						<p className="text-xs text-muted-foreground">
+							Slug final:{" "}
+							<span className="font-medium">{derivedSlug || "..."}</span>
+						</p>
+					</div>
+					<div className="space-y-2">
+						<Label htmlFor="org-logo">Logo (URL opcional)</Label>
+						<Input
+							id="org-logo"
+							value={logo}
+							onChange={(e) => setLogo(e.target.value)}
+							placeholder="https://example.com/logo.png"
+						/>
+					</div>
+					<Separator />
+					<DialogFooter>
+						<Button
+							type="button"
+							variant="outline"
+							onClick={() => setOpen(false)}
+						>
+							Cancelar
+						</Button>
+						<Button type="submit" disabled={isSubmitting || !name}>
+							{isSubmitting ? "Creando..." : "Crear organización"}
+						</Button>
+					</DialogFooter>
+				</form>
+			</DialogContent>
+		</Dialog>
 	);
 }
