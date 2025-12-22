@@ -1,3 +1,10 @@
+# [1.3.0](https://github.com/boletrics/partner/compare/v1.2.0...v1.3.0) (2025-12-22)
+
+
+### Features
+
+* **invitations:** add invitation acceptance page and public route ([5923470](https://github.com/boletrics/partner/commit/5923470ceb4e960339a2d1efc3bcfd02684ca6d9))
+
 # [1.2.0](https://github.com/boletrics/partner/compare/v1.1.0...v1.2.0) (2025-12-22)
 
 
