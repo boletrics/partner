@@ -8,6 +8,7 @@ import {
 	Eye,
 	RefreshCcw,
 	XCircle,
+	Loader2,
 } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -37,72 +38,55 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-
-const mockOrders = [
-	{
-		id: "ORD-2025-0142",
-		customer: "Carlos Rodríguez",
-		email: "carlos@email.com",
-		event: "Bad Bunny - Most Wanted Tour",
-		quantity: 2,
-		total: 7800,
-		status: "completed",
-		date: "2025-01-18T15:30:00Z",
-	},
-	{
-		id: "ORD-2025-0141",
-		customer: "Ana María López",
-		email: "ana@email.com",
-		event: "Festival Vive Latino 2025",
-		quantity: 4,
-		total: 10000,
-		status: "completed",
-		date: "2025-01-18T14:20:00Z",
-	},
-	{
-		id: "ORD-2025-0140",
-		customer: "Miguel Hernández",
-		email: "miguel@email.com",
-		event: "Shakira - Las Mujeres Ya No Lloran",
-		quantity: 1,
-		total: 4500,
-		status: "pending",
-		date: "2025-01-18T13:15:00Z",
-	},
-	{
-		id: "ORD-2025-0139",
-		customer: "Laura Sánchez",
-		email: "laura@email.com",
-		event: "Coldplay - Music of the Spheres",
-		quantity: 3,
-		total: 13500,
-		status: "completed",
-		date: "2025-01-18T11:45:00Z",
-	},
-	{
-		id: "ORD-2025-0138",
-		customer: "Pedro Martínez",
-		email: "pedro@email.com",
-		event: "Karol G - Mañana Será Bonito Tour",
-		quantity: 2,
-		total: 8000,
-		status: "cancelled",
-		date: "2025-01-18T10:30:00Z",
-	},
-];
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/dialog";
+import Link from "next/link";
+import {
+	useOrganizationOrders,
+	useCancelOrder,
+	useRefundOrder,
+} from "@/lib/api/hooks/use-orders";
+import { useOrgStore } from "@/lib/org-store";
+import type { Order } from "@/lib/api/types";
+import { toast } from "sonner";
 
 export function OrdersView() {
 	const [searchQuery, setSearchQuery] = useState("");
 	const [statusFilter, setStatusFilter] = useState("all");
+	const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
 
-	const filteredOrders = mockOrders.filter((order) => {
+	const { currentOrg } = useOrgStore();
+	const {
+		data: ordersResult,
+		isLoading,
+		error,
+		mutate,
+	} = useOrganizationOrders({
+		status:
+			statusFilter !== "all" ? (statusFilter as Order["status"]) : undefined,
+	});
+
+	const orders = ordersResult?.data ?? [];
+
+	// Count orders by status
+	const statusCounts = {
+		all: orders.length,
+		pending: orders.filter((o) => o.status === "pending").length,
+		paid: orders.filter((o) => o.status === "paid").length,
+		cancelled: orders.filter((o) => o.status === "cancelled").length,
+		refunded: orders.filter((o) => o.status === "refunded").length,
+	};
+
+	const filteredOrders = orders.filter((order) => {
 		const matchesSearch =
-			order.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-			order.customer.toLowerCase().includes(searchQuery.toLowerCase()) ||
+			order.order_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
 			order.email.toLowerCase().includes(searchQuery.toLowerCase());
-		const matchesStatus =
-			statusFilter === "all" || order.status === statusFilter;
-		return matchesSearch && matchesStatus;
+		return matchesSearch;
 	});
 
 	const formatCurrency = (amount: number) => {
@@ -123,16 +107,53 @@ export function OrdersView() {
 	};
 
 	const statusLabels: Record<string, string> = {
-		completed: "Completada",
+		paid: "Pagada",
 		pending: "Pendiente",
 		cancelled: "Cancelada",
+		refunded: "Reembolsada",
 	};
 
-	const statusColors: Record<string, string> = {
-		completed: "default",
+	const statusColors: Record<
+		string,
+		"default" | "secondary" | "destructive" | "outline"
+	> = {
+		paid: "default",
 		pending: "secondary",
 		cancelled: "destructive",
+		refunded: "outline",
 	};
+
+	const handleCancelOrder = async (orderId: string) => {
+		try {
+			const { cancelOrder } = useCancelOrder(orderId);
+			await cancelOrder();
+			mutate();
+			toast.success("Orden cancelada");
+		} catch (error) {
+			toast.error("Error al cancelar la orden");
+		}
+	};
+
+	const handleRefundOrder = async (orderId: string) => {
+		try {
+			const { refundOrder } = useRefundOrder(orderId);
+			await refundOrder();
+			mutate();
+			toast.success("Reembolso procesado");
+		} catch (error) {
+			toast.error("Error al procesar el reembolso");
+		}
+	};
+
+	if (!currentOrg) {
+		return (
+			<div className="p-4 md:p-6 flex items-center justify-center min-h-[400px]">
+				<p className="text-muted-foreground">
+					Selecciona una organización para ver las órdenes
+				</p>
+			</div>
+		);
+	}
 
 	return (
 		<div className="p-4 md:p-6 space-y-6 overflow-hidden min-w-0">
@@ -152,12 +173,18 @@ export function OrdersView() {
 			</div>
 
 			<div className="overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0">
-				<Tabs defaultValue="all" className="w-full">
+				<Tabs defaultValue="all" onValueChange={setStatusFilter}>
 					<TabsList className="w-max">
-						<TabsTrigger value="all">Todas ({mockOrders.length})</TabsTrigger>
-						<TabsTrigger value="completed">Completadas (3)</TabsTrigger>
-						<TabsTrigger value="pending">Pendientes (1)</TabsTrigger>
-						<TabsTrigger value="cancelled">Canceladas (1)</TabsTrigger>
+						<TabsTrigger value="all">Todas ({statusCounts.all})</TabsTrigger>
+						<TabsTrigger value="paid">
+							Pagadas ({statusCounts.paid})
+						</TabsTrigger>
+						<TabsTrigger value="pending">
+							Pendientes ({statusCounts.pending})
+						</TabsTrigger>
+						<TabsTrigger value="refunded">
+							Reembolsadas ({statusCounts.refunded})
+						</TabsTrigger>
 					</TabsList>
 				</Tabs>
 			</div>
@@ -180,114 +207,221 @@ export function OrdersView() {
 							</SelectTrigger>
 							<SelectContent>
 								<SelectItem value="all">Todos los estados</SelectItem>
-								<SelectItem value="completed">Completadas</SelectItem>
+								<SelectItem value="paid">Pagadas</SelectItem>
 								<SelectItem value="pending">Pendientes</SelectItem>
 								<SelectItem value="cancelled">Canceladas</SelectItem>
+								<SelectItem value="refunded">Reembolsadas</SelectItem>
 							</SelectContent>
 						</Select>
 					</div>
 				</CardHeader>
 				<CardContent className="p-0 md:p-6 md:pt-0">
-					<div className="overflow-x-auto">
-						<div className="rounded-md border min-w-[800px]">
-							<Table>
-								<TableHeader>
-									<TableRow>
-										<TableHead>ID de orden</TableHead>
-										<TableHead>Cliente</TableHead>
-										<TableHead>Evento</TableHead>
-										<TableHead>Cantidad</TableHead>
-										<TableHead>Total</TableHead>
-										<TableHead>Estado</TableHead>
-										<TableHead>Fecha</TableHead>
-										<TableHead className="w-[50px]"></TableHead>
-									</TableRow>
-								</TableHeader>
-								<TableBody>
-									{filteredOrders.map((order) => (
-										<TableRow key={order.id}>
-											<TableCell className="font-mono text-sm">
-												{order.id}
-											</TableCell>
-											<TableCell>
-												<div>
-													<p className="font-medium">{order.customer}</p>
-													<p className="text-sm text-muted-foreground">
-														{order.email}
-													</p>
-												</div>
-											</TableCell>
-											<TableCell className="max-w-[200px] truncate">
-												{order.event}
-											</TableCell>
-											<TableCell>
-												<Badge variant="outline">
-													{order.quantity} boletos
-												</Badge>
-											</TableCell>
-											<TableCell className="font-semibold">
-												{formatCurrency(order.total)}
-											</TableCell>
-											<TableCell>
-												<Badge variant={statusColors[order.status] as any}>
-													{statusLabels[order.status]}
-												</Badge>
-											</TableCell>
-											<TableCell className="text-muted-foreground text-sm whitespace-nowrap">
-												{formatDateTime(order.date)}
-											</TableCell>
-											<TableCell>
-												<DropdownMenu>
-													<DropdownMenuTrigger asChild>
-														<Button
-															variant="ghost"
-															size="icon"
-															className="h-8 w-8"
-														>
-															<MoreHorizontal className="h-4 w-4" />
-															<span className="sr-only">Acciones</span>
-														</Button>
-													</DropdownMenuTrigger>
-													<DropdownMenuContent align="end">
-														<DropdownMenuLabel>Acciones</DropdownMenuLabel>
-														<DropdownMenuSeparator />
-														<DropdownMenuItem>
-															<Eye className="mr-2 h-4 w-4" />
-															Ver detalles
-														</DropdownMenuItem>
-														<DropdownMenuItem>
-															<Download className="mr-2 h-4 w-4" />
-															Descargar boletos
-														</DropdownMenuItem>
-														{order.status === "pending" && (
-															<>
-																<DropdownMenuSeparator />
-																<DropdownMenuItem>
-																	<RefreshCcw className="mr-2 h-4 w-4" />
-																	Reenviar confirmación
-																</DropdownMenuItem>
-															</>
-														)}
-														{order.status === "completed" && (
-															<>
-																<DropdownMenuSeparator />
-																<DropdownMenuItem className="text-destructive">
+					{isLoading ? (
+						<div className="flex items-center justify-center py-12">
+							<Loader2 className="h-8 w-8 animate-spin text-primary" />
+						</div>
+					) : error ? (
+						<div className="text-center py-12">
+							<p className="text-destructive">Error al cargar órdenes</p>
+							<Button
+								variant="outline"
+								className="mt-4"
+								onClick={() => mutate()}
+							>
+								Reintentar
+							</Button>
+						</div>
+					) : filteredOrders.length === 0 ? (
+						<div className="text-center py-12">
+							<p className="text-muted-foreground">
+								{orders.length === 0
+									? "No hay órdenes aún"
+									: "No se encontraron órdenes con los filtros aplicados"}
+							</p>
+						</div>
+					) : (
+						<div className="overflow-x-auto">
+							<div className="rounded-md border min-w-[800px]">
+								<Table>
+									<TableHeader>
+										<TableRow>
+											<TableHead>ID de orden</TableHead>
+											<TableHead>Cliente</TableHead>
+											<TableHead>Evento</TableHead>
+											<TableHead>Cantidad</TableHead>
+											<TableHead>Total</TableHead>
+											<TableHead>Estado</TableHead>
+											<TableHead>Fecha</TableHead>
+											<TableHead className="w-[50px]"></TableHead>
+										</TableRow>
+									</TableHeader>
+									<TableBody>
+										{filteredOrders.map((order) => (
+											<TableRow key={order.id}>
+												<TableCell className="font-mono text-sm">
+													{order.order_number}
+												</TableCell>
+												<TableCell>
+													<div>
+														<p className="font-medium truncate max-w-[150px]">
+															{order.email}
+														</p>
+													</div>
+												</TableCell>
+												<TableCell className="max-w-[200px] truncate">
+													{order.event?.title ?? "Evento"}
+												</TableCell>
+												<TableCell>
+													<Badge variant="outline">
+														{order.items?.reduce(
+															(acc, item) => acc + item.quantity,
+															0,
+														) ?? 0}{" "}
+														boletos
+													</Badge>
+												</TableCell>
+												<TableCell className="font-semibold">
+													{formatCurrency(order.total)}
+												</TableCell>
+												<TableCell>
+													<Badge variant={statusColors[order.status]}>
+														{statusLabels[order.status]}
+													</Badge>
+												</TableCell>
+												<TableCell className="text-muted-foreground text-sm whitespace-nowrap">
+													{formatDateTime(order.created_at)}
+												</TableCell>
+												<TableCell>
+													<DropdownMenu>
+														<DropdownMenuTrigger asChild>
+															<Button
+																variant="ghost"
+																size="icon"
+																className="h-8 w-8"
+															>
+																<MoreHorizontal className="h-4 w-4" />
+																<span className="sr-only">Acciones</span>
+															</Button>
+														</DropdownMenuTrigger>
+														<DropdownMenuContent align="end">
+															<DropdownMenuLabel>Acciones</DropdownMenuLabel>
+															<DropdownMenuSeparator />
+															<DropdownMenuItem
+																onClick={() => setSelectedOrder(order)}
+															>
+																<Eye className="mr-2 h-4 w-4" />
+																Ver detalles
+															</DropdownMenuItem>
+															<DropdownMenuItem>
+																<Download className="mr-2 h-4 w-4" />
+																Descargar boletos
+															</DropdownMenuItem>
+															{order.status === "pending" && (
+																<>
+																	<DropdownMenuSeparator />
+																	<DropdownMenuItem>
+																		<RefreshCcw className="mr-2 h-4 w-4" />
+																		Reenviar confirmación
+																	</DropdownMenuItem>
+																</>
+															)}
+															{order.status === "paid" && (
+																<>
+																	<DropdownMenuSeparator />
+																	<DropdownMenuItem
+																		className="text-destructive"
+																		onClick={() => handleRefundOrder(order.id)}
+																	>
+																		<XCircle className="mr-2 h-4 w-4" />
+																		Reembolsar
+																	</DropdownMenuItem>
+																</>
+															)}
+															{order.status === "pending" && (
+																<DropdownMenuItem
+																	className="text-destructive"
+																	onClick={() => handleCancelOrder(order.id)}
+																>
 																	<XCircle className="mr-2 h-4 w-4" />
 																	Cancelar orden
 																</DropdownMenuItem>
-															</>
-														)}
-													</DropdownMenuContent>
-												</DropdownMenu>
-											</TableCell>
-										</TableRow>
-									))}
-								</TableBody>
-							</Table>
+															)}
+														</DropdownMenuContent>
+													</DropdownMenu>
+												</TableCell>
+											</TableRow>
+										))}
+									</TableBody>
+								</Table>
+							</div>
 						</div>
-					</div>
+					)}
 				</CardContent>
 			</Card>
+
+			{/* Order Details Dialog */}
+			<Dialog
+				open={!!selectedOrder}
+				onOpenChange={() => setSelectedOrder(null)}
+			>
+				<DialogContent className="max-w-2xl">
+					<DialogHeader>
+						<DialogTitle>Detalles de la orden</DialogTitle>
+						<DialogDescription>
+							Orden #{selectedOrder?.order_number}
+						</DialogDescription>
+					</DialogHeader>
+					{selectedOrder && (
+						<div className="space-y-4">
+							<div className="grid grid-cols-2 gap-4">
+								<div>
+									<p className="text-sm text-muted-foreground">Email</p>
+									<p className="font-medium">{selectedOrder.email}</p>
+								</div>
+								<div>
+									<p className="text-sm text-muted-foreground">Estado</p>
+									<Badge variant={statusColors[selectedOrder.status]}>
+										{statusLabels[selectedOrder.status]}
+									</Badge>
+								</div>
+								<div>
+									<p className="text-sm text-muted-foreground">Fecha</p>
+									<p className="font-medium">
+										{formatDateTime(selectedOrder.created_at)}
+									</p>
+								</div>
+								<div>
+									<p className="text-sm text-muted-foreground">Total</p>
+									<p className="font-medium">
+										{formatCurrency(selectedOrder.total)}
+									</p>
+								</div>
+							</div>
+							<div>
+								<p className="text-sm text-muted-foreground mb-2">Desglose</p>
+								<div className="space-y-1 text-sm">
+									<div className="flex justify-between">
+										<span>Subtotal</span>
+										<span>{formatCurrency(selectedOrder.subtotal)}</span>
+									</div>
+									<div className="flex justify-between">
+										<span>Comisiones</span>
+										<span>{formatCurrency(selectedOrder.fees)}</span>
+									</div>
+									<div className="flex justify-between">
+										<span>IVA</span>
+										<span>{formatCurrency(selectedOrder.tax)}</span>
+									</div>
+									<div className="flex justify-between font-bold pt-2 border-t">
+										<span>Total</span>
+										<span>{formatCurrency(selectedOrder.total)}</span>
+									</div>
+								</div>
+							</div>
+						</div>
+					)}
+				</DialogContent>
+			</Dialog>
 		</div>
 	);
 }
