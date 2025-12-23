@@ -183,7 +183,7 @@ export function EventsView() {
 					</div>
 				</CardHeader>
 				<CardContent className="p-0 md:p-6 md:pt-0">
-					<div className="overflow-x-auto w-full">
+					<div className="overflow-x-auto w-full max-w-full">
 						<div className="rounded-md border min-w-[800px]">
 							<Table>
 								<TableHeader>
