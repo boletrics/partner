@@ -28,19 +28,19 @@ import type {
  * Fetch events for the current organization.
  */
 export function useOrganizationEvents(
-	params: Omit<EventsQueryParams, "organization_id"> = {},
+	params: Omit<EventsQueryParams, "org_id"> = {},
 ) {
 	const { currentOrg } = useOrgStore();
-	const organizationId = currentOrg?.id;
+	const orgId = currentOrg?.id;
 
 	const queryString = buildQueryString({
 		...params,
-		organization_id: organizationId ?? undefined,
+		org_id: orgId ?? undefined,
 		include: params.include ?? "venue,dates,ticket_types",
 	});
 
 	return useApiQuery<PaginatedResult<Event>>(
-		organizationId ? `/events${queryString}` : null,
+		orgId ? `/events${queryString}` : null,
 	);
 }
 

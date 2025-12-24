@@ -20,15 +20,15 @@ export interface AnalyticsQueryParams {
  */
 export function useOrganizationAnalytics(params: AnalyticsQueryParams = {}) {
 	const { currentOrg } = useOrgStore();
-	const organizationId = currentOrg?.id;
+	const orgId = currentOrg?.id;
 
 	const queryString = buildQueryString({
 		...params,
-		organization_id: organizationId ?? undefined,
+		org_id: orgId ?? undefined,
 	});
 
 	return useApiQuery<OrganizationAnalytics>(
-		organizationId ? `/analytics/organization${queryString}` : null,
+		orgId ? `/analytics/organization${queryString}` : null,
 	);
 }
 
@@ -37,11 +37,11 @@ export function useOrganizationAnalytics(params: AnalyticsQueryParams = {}) {
  */
 export function useRevenueAnalytics(params: AnalyticsQueryParams = {}) {
 	const { currentOrg } = useOrgStore();
-	const organizationId = currentOrg?.id;
+	const orgId = currentOrg?.id;
 
 	const queryString = buildQueryString({
 		...params,
-		organization_id: organizationId ?? undefined,
+		org_id: orgId ?? undefined,
 	});
 
 	return useApiQuery<{
@@ -53,7 +53,7 @@ export function useRevenueAnalytics(params: AnalyticsQueryParams = {}) {
 			revenue: number;
 		}>;
 		revenue_growth: number;
-	}>(organizationId ? `/analytics/revenue${queryString}` : null);
+	}>(orgId ? `/analytics/revenue${queryString}` : null);
 }
 
 /**
@@ -61,11 +61,11 @@ export function useRevenueAnalytics(params: AnalyticsQueryParams = {}) {
  */
 export function useSalesAnalytics(params: AnalyticsQueryParams = {}) {
 	const { currentOrg } = useOrgStore();
-	const organizationId = currentOrg?.id;
+	const orgId = currentOrg?.id;
 
 	const queryString = buildQueryString({
 		...params,
-		organization_id: organizationId ?? undefined,
+		org_id: orgId ?? undefined,
 	});
 
 	return useApiQuery<{
@@ -77,7 +77,7 @@ export function useSalesAnalytics(params: AnalyticsQueryParams = {}) {
 			tickets_sold: number;
 		}>;
 		conversion_rate: number;
-	}>(organizationId ? `/analytics/sales${queryString}` : null);
+	}>(orgId ? `/analytics/sales${queryString}` : null);
 }
 
 /**

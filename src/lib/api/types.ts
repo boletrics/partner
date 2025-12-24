@@ -36,16 +36,30 @@ export interface PaginatedResult<T> {
 // Organization Types
 // ============================================================================
 
+/**
+ * Organization identity (from auth-svc).
+ * This is the source of truth for organization name, slug, logo, and membership.
+ */
 export interface Organization {
 	id: string;
 	name: string;
 	slug: string;
-	logo_url?: string | null;
-	description?: string | null;
-	website?: string | null;
+	logo?: string | null;
+	metadata?: Record<string, unknown> | null;
+	createdAt: string;
+}
+
+/**
+ * Organization settings (from tickets-svc).
+ * Ticketing-specific configuration like plan, commission, payout schedule.
+ */
+export interface OrganizationSettings {
+	org_id: string;
 	email: string;
 	phone?: string | null;
 	tax_id?: string | null;
+	description?: string | null;
+	website?: string | null;
 	status: "pending" | "active" | "suspended" | "inactive";
 	plan: "starter" | "professional" | "enterprise";
 	currency: "MXN" | "USD";
@@ -55,6 +69,14 @@ export interface Organization {
 	payout_schedule: "daily" | "weekly" | "biweekly" | "monthly";
 	created_at: string;
 	updated_at: string;
+}
+
+/**
+ * Combined organization with both identity and settings.
+ * Used in partner dashboard views where both are needed.
+ */
+export interface OrganizationWithSettings extends Organization {
+	settings?: OrganizationSettings;
 }
 
 // ============================================================================
@@ -135,7 +157,7 @@ export interface TicketType {
 
 export interface Event {
 	id: string;
-	organization_id: string;
+	org_id: string; // References auth-svc organization.id
 	venue_id: string;
 	title: string;
 	slug: string;
@@ -155,7 +177,7 @@ export interface Event {
 }
 
 export interface CreateEventInput {
-	organization_id: string;
+	org_id: string; // References auth-svc organization.id
 	venue_id: string;
 	title: string;
 	slug?: string;
@@ -211,7 +233,7 @@ export interface Order {
 	user_id?: string | null;
 	email: string;
 	event_id: string;
-	organization_id: string;
+	org_id: string; // References auth-svc organization.id
 	subtotal: number;
 	fees: number;
 	tax: number;
@@ -232,13 +254,33 @@ export interface Order {
 export interface CreateOrderInput {
 	email: string;
 	event_id: string;
-	organization_id: string;
+	org_id: string; // References auth-svc organization.id
 	items: Array<{
 		ticket_type_id: string;
 		quantity: number;
 	}>;
 	user_id?: string;
 }
+
+export interface CreateOrgSettingsInput {
+	org_id: string;
+	email: string;
+	phone?: string;
+	tax_id?: string;
+	description?: string;
+	website?: string;
+	status?: OrganizationSettings["status"];
+	plan?: OrganizationSettings["plan"];
+	currency?: OrganizationSettings["currency"];
+	timezone?: string;
+	language?: OrganizationSettings["language"];
+	commission_rate?: number;
+	payout_schedule?: OrganizationSettings["payout_schedule"];
+}
+
+export interface UpdateOrgSettingsInput extends Partial<
+	Omit<CreateOrgSettingsInput, "org_id">
+> {}
 
 // ============================================================================
 // Ticket Types
@@ -304,7 +346,7 @@ export interface OrganizationAnalytics {
 // ============================================================================
 
 export interface EventsQueryParams {
-	organization_id?: string;
+	org_id?: string;
 	status?: EventStatus;
 	category?: EventCategory;
 	region?: string;
@@ -315,7 +357,7 @@ export interface EventsQueryParams {
 }
 
 export interface OrdersQueryParams {
-	organization_id?: string;
+	org_id?: string;
 	event_id?: string;
 	user_id?: string;
 	status?: OrderStatus;

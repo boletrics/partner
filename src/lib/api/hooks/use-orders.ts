@@ -17,18 +17,18 @@ import type { Order, OrdersQueryParams, PaginatedResult } from "../types";
  * Fetch orders for the current organization.
  */
 export function useOrganizationOrders(
-	params: Omit<OrdersQueryParams, "organization_id"> = {},
+	params: Omit<OrdersQueryParams, "org_id"> = {},
 ) {
 	const { currentOrg } = useOrgStore();
-	const organizationId = currentOrg?.id;
+	const orgId = currentOrg?.id;
 
 	const queryString = buildQueryString({
 		...params,
-		organization_id: organizationId ?? undefined,
+		org_id: orgId ?? undefined,
 	});
 
 	return useApiQuery<PaginatedResult<Order>>(
-		organizationId ? `/orders${queryString}` : null,
+		orgId ? `/orders${queryString}` : null,
 	);
 }
 
@@ -122,10 +122,10 @@ export interface OrderStats {
  */
 export function useOrganizationOrderStats() {
 	const { currentOrg } = useOrgStore();
-	const organizationId = currentOrg?.id;
+	const orgId = currentOrg?.id;
 
 	return useApiQuery<OrderStats>(
-		organizationId ? `/orders/stats?organization_id=${organizationId}` : null,
+		orgId ? `/orders/stats?org_id=${orgId}` : null,
 	);
 }
 

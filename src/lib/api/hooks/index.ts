@@ -4,3 +4,4 @@ export * from "./use-venues";
 export * from "./use-orders";
 export * from "./use-tickets";
 export * from "./use-analytics";
+export * from "./use-org-settings";

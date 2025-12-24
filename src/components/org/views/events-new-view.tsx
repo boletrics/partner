@@ -103,7 +103,7 @@ export function EventsNewView() {
 		try {
 			// Create the event
 			const eventInput: CreateEventInput = {
-				organization_id: currentOrg.id,
+				org_id: currentOrg.id,
 				venue_id: formData.venue_id,
 				title: formData.title,
 				category: formData.category as EventCategory,
