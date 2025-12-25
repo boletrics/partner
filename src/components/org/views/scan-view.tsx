@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
 	QrCode,
 	CheckCircle,
@@ -73,6 +73,17 @@ export function ScanView() {
 		capacity: 0,
 		scanned: 0,
 	});
+
+	// Update capacity when event is selected
+	useEffect(() => {
+		const selectedEvent = events.find((e) => e.id === selectedEventId);
+		if (selectedEvent?.venue?.capacity) {
+			setScanStats((prev) => ({
+				...prev,
+				capacity: selectedEvent.venue!.capacity!,
+			}));
+		}
+	}, [selectedEventId, events]);
 
 	const handleManualScan = async () => {
 		if (!ticketCode.trim() || !selectedEventId) {

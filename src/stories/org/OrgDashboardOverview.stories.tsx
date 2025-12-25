@@ -38,13 +38,22 @@ const mockEvents = {
 			id: "1",
 			title: "Rock Festival 2025",
 			venue: { capacity: 500 },
-			ticket_types: [{ quantity_sold: 350, name: "General" }],
+			ticket_types: [
+				{
+					quantity_sold: 350,
+					name: "General",
+					price: 150,
+					quantity_total: 500,
+				},
+			],
 		},
 		{
 			id: "2",
 			title: "Jazz Night",
 			venue: { capacity: 200 },
-			ticket_types: [{ quantity_sold: 80, name: "VIP" }],
+			ticket_types: [
+				{ quantity_sold: 80, name: "VIP", price: 250, quantity_total: 200 },
+			],
 		},
 	],
 };

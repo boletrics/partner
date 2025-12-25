@@ -45,6 +45,9 @@ export async function POST(request: NextRequest) {
 		// Call tickets-svc to validate the ticket
 		const upstreamUrl = `${getTicketsSvcUrl()}/tickets/validate`;
 
+		const controller = new AbortController();
+		const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+
 		const response = await fetch(upstreamUrl, {
 			method: "POST",
 			headers: {
@@ -56,10 +59,18 @@ export async function POST(request: NextRequest) {
 				eventId,
 				scannedBy: session.user.id,
 			}),
+			signal: controller.signal,
 		});
 
+		clearTimeout(timeoutId);
+
 		if (!response.ok) {
-			const result = (await response.json()) as ValidateErrorResult;
+			let result: ValidateErrorResult;
+			try {
+				result = (await response.json()) as ValidateErrorResult;
+			} catch {
+				result = { error: "Failed to parse upstream response" };
+			}
 			return NextResponse.json(
 				{
 					valid: false,
