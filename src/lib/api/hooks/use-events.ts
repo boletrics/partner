@@ -213,10 +213,10 @@ export function useRemoveEventDate(eventId: string, dateId: string) {
  * Add a ticket type to an event.
  */
 export function useAddTicketType(eventId: string) {
-	const mutation = useApiMutation<
-		TicketType,
-		Omit<CreateTicketTypeInput, "event_id">
-	>(`/ticket-types`, "POST");
+	const mutation = useApiMutation<TicketType, CreateTicketTypeInput>(
+		`/ticket-types`,
+		"POST",
+	);
 
 	const addTicketType = async (
 		data: Omit<CreateTicketTypeInput, "event_id">,
@@ -224,7 +224,7 @@ export function useAddTicketType(eventId: string) {
 		const result = await mutation.trigger({
 			...data,
 			event_id: eventId,
-		} as never);
+		});
 		revalidate(`/events/${eventId}`);
 		return result;
 	};
