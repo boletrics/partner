@@ -24,8 +24,8 @@ import type {
 // ============================================================================
 
 /**
- * Fetch events for the current organization.
- * Note: API doesn't support include parameter for relations
+ * Fetch events for the current organization with enriched venue and dates data.
+ * Since API doesn't support include parameter, we fetch relations separately and merge.
  */
 export function useOrganizationEvents(
 	params: Omit<EventsQueryParams, "org_id"> = {},
@@ -38,15 +38,80 @@ export function useOrganizationEvents(
 		org_id: orgId ?? undefined,
 	});
 
-	return useApiQuery<Event[]>(orgId ? `/events${queryString}` : null);
+	const { data: events, ...rest } = useApiQuery<Event[]>(
+		orgId ? `/events${queryString}` : null,
+	);
+
+	// Fetch all venues (we'll filter client-side)
+	const { data: venues } =
+		useApiQuery<
+			Array<{ id: string; name: string; city: string; state: string }>
+		>("/venues?limit=500");
+
+	// Fetch all event dates for this org's events
+	const { data: eventDates } = useApiQuery<EventDate[]>(
+		"/event-dates?limit=500",
+	);
+
+	// Fetch all ticket types for this org's events
+	const { data: ticketTypes } = useApiQuery<TicketType[]>(
+		"/ticket-types?limit=500",
+	);
+
+	// Create lookup maps
+	const venueMap = new Map<string, Event["venue"]>();
+	(venues ?? []).forEach((v) => venueMap.set(v.id, v as Event["venue"]));
+
+	const datesByEvent = new Map<string, EventDate[]>();
+	(eventDates ?? []).forEach((d) => {
+		if (!datesByEvent.has(d.event_id)) {
+			datesByEvent.set(d.event_id, []);
+		}
+		datesByEvent.get(d.event_id)!.push(d);
+	});
+
+	const ticketsByEvent = new Map<string, TicketType[]>();
+	(ticketTypes ?? []).forEach((t) => {
+		if (!ticketsByEvent.has(t.event_id)) {
+			ticketsByEvent.set(t.event_id, []);
+		}
+		ticketsByEvent.get(t.event_id)!.push(t);
+	});
+
+	// Enrich events with venue, dates, and ticket_types
+	const enrichedEvents = (events ?? []).map((event) => ({
+		...event,
+		venue: event.venue_id ? venueMap.get(event.venue_id) : undefined,
+		dates: datesByEvent.get(event.id) ?? [],
+		ticket_types: ticketsByEvent.get(event.id) ?? [],
+	}));
+
+	return { data: enrichedEvents, ...rest };
 }
 
 /**
- * Fetch a single event by ID.
- * Note: API doesn't support include parameter, relations are not included
+ * Fetch a single event by ID with related venue data.
+ * Since API doesn't support include parameter, we fetch venue separately and merge.
  */
 export function useEvent(eventId: string | null) {
-	return useApiQuery<Event>(eventId ? `/events/${eventId}` : null);
+	const { data: event, ...rest } = useApiQuery<Event>(
+		eventId ? `/events/${eventId}` : null,
+	);
+
+	// Fetch venue separately if event has venue_id
+	const { data: venue } = useApiQuery<Event["venue"]>(
+		event?.venue_id ? `/venues/${event.venue_id}` : null,
+	);
+
+	// Merge venue into event
+	const enrichedEvent = event
+		? {
+				...event,
+				venue: venue ?? event.venue,
+			}
+		: undefined;
+
+	return { data: enrichedEvent, ...rest };
 }
 
 // ============================================================================

@@ -56,6 +56,8 @@ import {
 	useAddEventDate,
 } from "@/lib/api/hooks/use-events";
 import { apiFetch } from "@/lib/api/client";
+import { useApiQuery } from "@/lib/api/client";
+import type { TicketType } from "@/lib/api/types";
 import { toast } from "sonner";
 
 interface EventDetailViewProps {
@@ -89,6 +91,9 @@ export function EventDetailView({ eventId }: EventDetailViewProps) {
 	const router = useRouter();
 	const { data: event, isLoading, error, mutate } = useEvent(eventId);
 	const { data: eventDates, mutate: mutateDates } = useEventDates(eventId);
+	const { data: ticketTypes, mutate: mutateTicketTypes } = useApiQuery<
+		TicketType[]
+	>(`/ticket-types?event_id=${eventId}`);
 	const { deleteEvent } = useDeleteEvent(eventId);
 	const { publishEvent } = usePublishEvent(eventId);
 	const { cancelEvent } = useCancelEvent(eventId);
@@ -97,17 +102,28 @@ export function EventDetailView({ eventId }: EventDetailViewProps) {
 	const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 	const [showAddDateDialog, setShowAddDateDialog] = useState(false);
 	const [showEditDateDialog, setShowEditDateDialog] = useState(false);
+	const [showAddTicketDialog, setShowAddTicketDialog] = useState(false);
 	const [isDeleting, setIsDeleting] = useState(false);
 	const [isPublishing, setIsPublishing] = useState(false);
 	const [isCancelling, setIsCancelling] = useState(false);
 	const [deletingDateId, setDeletingDateId] = useState<string | null>(null);
 	const [isUpdatingDate, setIsUpdatingDate] = useState(false);
+	const [isAddingTicket, setIsAddingTicket] = useState(false);
+	const [deletingTicketId, setDeletingTicketId] = useState<string | null>(null);
 
 	// New date form state
 	const [newDate, setNewDate] = useState({
 		date: "",
 		start_time: "",
 		end_time: "",
+	});
+
+	// New ticket type form state
+	const [newTicket, setNewTicket] = useState({
+		name: "",
+		price: 0,
+		quantity_total: 0,
+		description: "",
 	});
 
 	// Edit date form state
@@ -235,6 +251,54 @@ export function EventDetailView({ eventId }: EventDetailViewProps) {
 			toast.error("Error al actualizar la fecha");
 		} finally {
 			setIsUpdatingDate(false);
+		}
+	};
+
+	const handleAddTicket = async () => {
+		if (
+			!newTicket.name ||
+			newTicket.price <= 0 ||
+			newTicket.quantity_total <= 0
+		) {
+			toast.error("Por favor completa nombre, precio y cantidad");
+			return;
+		}
+
+		setIsAddingTicket(true);
+		try {
+			await apiFetch("/ticket-types", {
+				method: "POST",
+				body: {
+					event_id: eventId,
+					name: newTicket.name,
+					price: newTicket.price,
+					quantity_total: newTicket.quantity_total,
+					description: newTicket.description || null,
+				},
+			});
+			mutateTicketTypes();
+			mutate();
+			setShowAddTicketDialog(false);
+			setNewTicket({ name: "", price: 0, quantity_total: 0, description: "" });
+			toast.success("Tipo de boleto agregado");
+		} catch {
+			toast.error("Error al agregar tipo de boleto");
+		} finally {
+			setIsAddingTicket(false);
+		}
+	};
+
+	const handleDeleteTicket = async (ticketId: string) => {
+		setDeletingTicketId(ticketId);
+		try {
+			await apiFetch(`/ticket-types/${ticketId}`, { method: "DELETE" });
+			mutateTicketTypes();
+			mutate();
+			toast.success("Tipo de boleto eliminado");
+		} catch {
+			toast.error("Error al eliminar tipo de boleto");
+		} finally {
+			setDeletingTicketId(null);
 		}
 	};
 
@@ -366,46 +430,84 @@ export function EventDetailView({ eventId }: EventDetailViewProps) {
 					{/* Ticket Types */}
 					<Card>
 						<CardHeader>
-							<CardTitle className="flex items-center gap-2">
-								<Ticket className="h-5 w-5" />
-								Tipos de boletos
-							</CardTitle>
-							<CardDescription>
-								Gestiona los tipos de boletos disponibles
-							</CardDescription>
+							<div className="flex items-center justify-between">
+								<div>
+									<CardTitle className="flex items-center gap-2">
+										<Ticket className="h-5 w-5" />
+										Tipos de boletos
+									</CardTitle>
+									<CardDescription>
+										Gestiona los tipos de boletos disponibles
+									</CardDescription>
+								</div>
+								<Button
+									variant="outline"
+									size="sm"
+									onClick={() => setShowAddTicketDialog(true)}
+								>
+									<Plus className="h-4 w-4 mr-1" />
+									Agregar
+								</Button>
+							</div>
 						</CardHeader>
 						<CardContent>
-							{event.ticket_types && event.ticket_types.length > 0 ? (
+							{(ticketTypes ?? event.ticket_types ?? []).length > 0 ? (
 								<div className="space-y-3">
-									{event.ticket_types.map((ticketType) => (
-										<div
-											key={ticketType.id}
-											className="flex items-center justify-between p-3 border rounded-lg"
-										>
-											<div>
-												<p className="font-medium">{ticketType.name}</p>
-												{ticketType.description && (
-													<p className="text-sm text-muted-foreground">
-														{ticketType.description}
-													</p>
-												)}
+									{(ticketTypes ?? event.ticket_types ?? []).map(
+										(ticketType) => (
+											<div
+												key={ticketType.id}
+												className="flex items-center justify-between p-3 border rounded-lg group"
+											>
+												<div>
+													<p className="font-medium">{ticketType.name}</p>
+													{ticketType.description && (
+														<p className="text-sm text-muted-foreground">
+															{ticketType.description}
+														</p>
+													)}
+												</div>
+												<div className="flex items-center gap-3">
+													<div className="text-right">
+														<p className="font-semibold">
+															${ticketType.price.toLocaleString("es-MX")}
+														</p>
+														<p className="text-sm text-muted-foreground">
+															{ticketType.quantity_available} /{" "}
+															{ticketType.quantity_total} disponibles
+														</p>
+													</div>
+													<Button
+														variant="ghost"
+														size="sm"
+														onClick={() => handleDeleteTicket(ticketType.id)}
+														disabled={deletingTicketId === ticketType.id}
+														className="opacity-0 group-hover:opacity-100 transition-opacity"
+													>
+														{deletingTicketId === ticketType.id ? (
+															<Loader2 className="h-4 w-4 animate-spin" />
+														) : (
+															<Trash2 className="h-4 w-4 text-destructive" />
+														)}
+													</Button>
+												</div>
 											</div>
-											<div className="text-right">
-												<p className="font-semibold">
-													${ticketType.price.toLocaleString("es-MX")}
-												</p>
-												<p className="text-sm text-muted-foreground">
-													{ticketType.quantity_available} /{" "}
-													{ticketType.quantity_total} disponibles
-												</p>
-											</div>
-										</div>
-									))}
+										),
+									)}
 								</div>
 							) : (
-								<p className="text-muted-foreground text-center py-4">
-									No hay tipos de boletos configurados
-								</p>
+								<div className="text-center py-6">
+									<p className="text-muted-foreground mb-4">
+										No hay tipos de boletos configurados
+									</p>
+									<Button
+										variant="outline"
+										onClick={() => setShowAddTicketDialog(true)}
+									>
+										<Plus className="h-4 w-4 mr-2" />
+										Agregar tipo de boleto
+									</Button>
+								</div>
 							)}
 						</CardContent>
 					</Card>
@@ -762,6 +864,88 @@ export function EventDetailView({ eventId }: EventDetailViewProps) {
 								<Loader2 className="h-4 w-4 mr-2 animate-spin" />
 							)}
 							Guardar cambios
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+
+			{/* Add Ticket Type Dialog */}
+			<Dialog open={showAddTicketDialog} onOpenChange={setShowAddTicketDialog}>
+				<DialogContent>
+					<DialogHeader>
+						<DialogTitle>Agregar tipo de boleto</DialogTitle>
+						<DialogDescription>
+							Define un nuevo tipo de boleto para este evento.
+						</DialogDescription>
+					</DialogHeader>
+					<div className="space-y-4 py-4">
+						<div className="space-y-2">
+							<Label htmlFor="ticket-name">Nombre *</Label>
+							<Input
+								id="ticket-name"
+								placeholder="VIP, General, etc."
+								value={newTicket.name}
+								onChange={(e) =>
+									setNewTicket({ ...newTicket, name: e.target.value })
+								}
+							/>
+						</div>
+						<div className="grid gap-4 grid-cols-2">
+							<div className="space-y-2">
+								<Label htmlFor="ticket-price">Precio (MXN) *</Label>
+								<Input
+									id="ticket-price"
+									type="number"
+									placeholder="500"
+									value={newTicket.price || ""}
+									onChange={(e) =>
+										setNewTicket({
+											...newTicket,
+											price: parseFloat(e.target.value) || 0,
+										})
+									}
+								/>
+							</div>
+							<div className="space-y-2">
+								<Label htmlFor="ticket-quantity">Cantidad *</Label>
+								<Input
+									id="ticket-quantity"
+									type="number"
+									placeholder="100"
+									value={newTicket.quantity_total || ""}
+									onChange={(e) =>
+										setNewTicket({
+											...newTicket,
+											quantity_total: parseInt(e.target.value) || 0,
+										})
+									}
+								/>
+							</div>
+						</div>
+						<div className="space-y-2">
+							<Label htmlFor="ticket-description">Descripción (opcional)</Label>
+							<Input
+								id="ticket-description"
+								placeholder="Acceso a zona preferente..."
+								value={newTicket.description}
+								onChange={(e) =>
+									setNewTicket({ ...newTicket, description: e.target.value })
+								}
+							/>
+						</div>
+					</div>
+					<DialogFooter>
+						<Button
+							variant="outline"
+							onClick={() => setShowAddTicketDialog(false)}
+						>
+							Cancelar
+						</Button>
+						<Button onClick={handleAddTicket} disabled={isAddingTicket}>
+							{isAddingTicket && (
+								<Loader2 className="h-4 w-4 mr-2 animate-spin" />
+							)}
+							Agregar boleto
 						</Button>
 					</DialogFooter>
 				</DialogContent>
