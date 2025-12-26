@@ -40,6 +40,7 @@ import { useVenues, useCreateVenue } from "@/lib/api/hooks/use-venues";
 import { useOrgStore } from "@/lib/org-store";
 import type { EventCategory, CreateEventInput } from "@/lib/api/types";
 import { toast } from "sonner";
+import { ImageUpload } from "@/components/ui/image-upload";
 
 interface TicketTypeForm {
 	id: string;
@@ -63,6 +64,7 @@ export function EventsNewView() {
 		description: "",
 		artist: "",
 		image_url: "",
+		image_blur: "", // Base64 blur placeholder for Next.js Image
 		venue_id: "",
 		date: "",
 		start_time: "",
@@ -119,6 +121,7 @@ export function EventsNewView() {
 				description: formData.description || undefined,
 				artist: formData.artist || undefined,
 				image_url: formData.image_url || undefined,
+				image_blur: formData.image_blur || undefined,
 				status: publish ? "published" : "draft",
 				published_at: publish ? new Date().toISOString() : undefined,
 			};
@@ -585,19 +588,21 @@ export function EventsNewView() {
 							</CardTitle>
 						</CardHeader>
 						<CardContent className="space-y-4">
-							<div className="aspect-video rounded-lg border-2 border-dashed bg-muted/50 flex items-center justify-center cursor-pointer hover:border-primary transition-colors">
-								<div className="text-center space-y-2">
-									<ImageIcon className="h-8 w-8 mx-auto text-muted-foreground" />
-									<p className="text-sm text-muted-foreground">
-										Arrastra una imagen o haz clic para seleccionar
-									</p>
-									<p className="text-xs text-muted-foreground">
-										Tamaño recomendado: 1920x1080px
-									</p>
-								</div>
-							</div>
+							<ImageUpload
+								value={formData.image_url}
+								onChange={(value) =>
+									setFormData({
+										...formData,
+										image_url: value?.url ?? "",
+										image_blur: value?.blur ?? "",
+									})
+								}
+								context="event"
+								placeholder="Arrastra una imagen o haz clic para seleccionar (1920x1080px)"
+								aspectRatio="16/9"
+							/>
 							<div className="space-y-2">
-								<Label htmlFor="image_url">O ingresa una URL</Label>
+								<Label htmlFor="image_url">O ingresa una URL manualmente</Label>
 								<Input
 									id="image_url"
 									placeholder="https://..."
