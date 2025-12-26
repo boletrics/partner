@@ -1,3 +1,10 @@
+# [1.6.0](https://github.com/boletrics/partner/compare/v1.5.1...v1.6.0) (2025-12-26)
+
+
+### Features
+
+* **api:** add ticket validation endpoint and integrate SWR for data fetching ([d87f412](https://github.com/boletrics/partner/commit/d87f41279f369fd23bcec41696ad32fbe07d82ad))
+
 ## [1.5.1](https://github.com/boletrics/partner/compare/v1.5.0...v1.5.1) (2025-12-22)
 
 
