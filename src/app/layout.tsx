@@ -4,6 +4,7 @@ import { Inter, Source_Serif_4, JetBrains_Mono } from "next/font/google";
 import { ThemeProvider } from "@/components/theme-provider";
 import { getServerSession } from "@/lib/auth/getServerSession";
 import { SessionHydrator } from "@/lib/auth/useAuthSession";
+import { SwrProvider } from "@/lib/api/swr-provider";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -32,7 +33,7 @@ export default async function RootLayout({
 						enableSystem
 						disableTransitionOnChange
 					>
-						{children}
+						<SwrProvider>{children}</SwrProvider>
 					</ThemeProvider>
 				</SessionHydrator>
 			</body>
