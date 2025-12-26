@@ -57,8 +57,7 @@ interface TicketValidationResult {
 
 export function ScanView() {
 	const { currentOrg } = useOrgStore();
-	const { data: eventsData } = useOrganizationEvents();
-	const events = eventsData?.data || [];
+	const { data: events = [] } = useOrganizationEvents();
 	const [selectedEventId, setSelectedEventId] = useState<string>("");
 	const [ticketCode, setTicketCode] = useState("");
 	const [isValidating, setIsValidating] = useState(false);

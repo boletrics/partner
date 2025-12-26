@@ -105,7 +105,7 @@ export interface CreateVenueInput {
 	city: string;
 	state: string;
 	postal_code?: string;
-	country?: string;
+	country: string;
 	region: Venue["region"];
 	capacity?: number;
 	latitude?: number;
@@ -180,12 +180,13 @@ export interface CreateEventInput {
 	org_id: string; // References auth-svc organization.id
 	venue_id: string;
 	title: string;
-	slug?: string;
+	slug: string;
 	description?: string;
 	category: EventCategory;
 	artist?: string;
 	image_url?: string;
 	status?: EventStatus;
+	published_at?: string;
 }
 
 export interface UpdateEventInput extends Partial<CreateEventInput> {}

@@ -350,8 +350,7 @@ export function OrgDashboardOverview() {
 		useOrganizationAnalytics();
 	const { data: revenueAnalytics } = useRevenueAnalytics();
 	const { data: salesAnalytics } = useSalesAnalytics();
-	const { data: eventsData } = useOrganizationEvents();
-	const events = eventsData?.data || [];
+	const { data: events = [] } = useOrganizationEvents();
 
 	// Build stats from API data with fallbacks
 	const stats = {

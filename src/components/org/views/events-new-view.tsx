@@ -53,10 +53,8 @@ export function EventsNewView() {
 	const router = useRouter();
 	const { currentOrg } = useOrgStore();
 	const { createEvent, isMutating } = useCreateEvent();
-	const { data: venuesResult } = useVenues();
+	const { data: venues = [] } = useVenues();
 	const { createVenue } = useCreateVenue();
-
-	const venues = venuesResult?.data ?? [];
 
 	// Form state
 	const [formData, setFormData] = useState({
@@ -101,16 +99,28 @@ export function EventsNewView() {
 		}
 
 		try {
+			// Generate slug from title
+			const slug = formData.title
+				.toLowerCase()
+				.normalize("NFD")
+				.replace(/[\u0300-\u036f]/g, "") // Remove accents
+				.replace(/[^a-z0-9\s-]/g, "") // Remove special chars
+				.replace(/\s+/g, "-") // Replace spaces with dashes
+				.replace(/-+/g, "-") // Replace multiple dashes with single
+				.replace(/^-|-$/g, ""); // Remove leading/trailing dashes
+
 			// Create the event
 			const eventInput: CreateEventInput = {
 				org_id: currentOrg.id,
 				venue_id: formData.venue_id,
 				title: formData.title,
+				slug,
 				category: formData.category as EventCategory,
 				description: formData.description || undefined,
 				artist: formData.artist || undefined,
 				image_url: formData.image_url || undefined,
 				status: publish ? "published" : "draft",
+				published_at: publish ? new Date().toISOString() : undefined,
 			};
 
 			const event = await createEvent(eventInput);
@@ -142,6 +152,7 @@ export function EventsNewView() {
 				address: newVenue.address,
 				city: newVenue.city,
 				state: newVenue.state,
+				country: "México",
 				region: newVenue.region,
 				capacity: newVenue.capacity || undefined,
 			});

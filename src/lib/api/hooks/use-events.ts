@@ -17,7 +17,6 @@ import type {
 	CreateEventDateInput,
 	CreateTicketTypeInput,
 	UpdateTicketTypeInput,
-	PaginatedResult,
 } from "../types";
 
 // ============================================================================
@@ -26,6 +25,7 @@ import type {
 
 /**
  * Fetch events for the current organization.
+ * Note: API doesn't support include parameter for relations
  */
 export function useOrganizationEvents(
 	params: Omit<EventsQueryParams, "org_id"> = {},
@@ -36,23 +36,17 @@ export function useOrganizationEvents(
 	const queryString = buildQueryString({
 		...params,
 		org_id: orgId ?? undefined,
-		include: params.include ?? "venue,dates,ticket_types",
 	});
 
-	return useApiQuery<PaginatedResult<Event>>(
-		orgId ? `/events${queryString}` : null,
-	);
+	return useApiQuery<Event[]>(orgId ? `/events${queryString}` : null);
 }
 
 /**
  * Fetch a single event by ID.
+ * Note: API doesn't support include parameter, relations are not included
  */
 export function useEvent(eventId: string | null) {
-	return useApiQuery<Event>(
-		eventId
-			? `/events/${eventId}?include=venue,dates,ticket_types,organization`
-			: null,
-	);
+	return useApiQuery<Event>(eventId ? `/events/${eventId}` : null);
 }
 
 // ============================================================================
@@ -120,13 +114,16 @@ export function useDeleteEvent(eventId: string) {
  * Publish an event.
  */
 export function usePublishEvent(eventId: string) {
-	const mutation = useApiMutation<Event, { status: "published" }>(
-		`/events/${eventId}`,
-		"PUT",
-	);
+	const mutation = useApiMutation<
+		Event,
+		{ status: "published"; published_at: string }
+	>(`/events/${eventId}`, "PUT");
 
 	const publishEvent = async () => {
-		const result = await mutation.trigger({ status: "published" });
+		const result = await mutation.trigger({
+			status: "published",
+			published_at: new Date().toISOString(),
+		});
 		revalidate(`/events/${eventId}`);
 		revalidate(/\/events/);
 		return result;

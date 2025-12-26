@@ -72,15 +72,13 @@ export function EventsView() {
 
 	const { currentOrg } = useOrgStore();
 	const {
-		data: eventsResult,
+		data: events = [],
 		isLoading,
 		error,
 		mutate,
 	} = useOrganizationEvents({
 		include: "venue,dates,ticket_types",
 	});
-
-	const events = eventsResult?.data ?? [];
 
 	// Count events by status
 	const statusCounts = {

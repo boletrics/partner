@@ -6,12 +6,7 @@ import {
 	buildQueryString,
 	revalidate,
 } from "../client";
-import type {
-	Venue,
-	CreateVenueInput,
-	UpdateVenueInput,
-	PaginatedResult,
-} from "../types";
+import type { Venue, CreateVenueInput, UpdateVenueInput } from "../types";
 
 // ============================================================================
 // Venues Query Params
@@ -35,7 +30,7 @@ export interface VenuesQueryParams {
  */
 export function useVenues(params: VenuesQueryParams = {}) {
 	const queryString = buildQueryString(params);
-	return useApiQuery<PaginatedResult<Venue>>(`/venues${queryString}`);
+	return useApiQuery<Venue[]>(`/venues${queryString}`);
 }
 
 /**
@@ -43,9 +38,7 @@ export function useVenues(params: VenuesQueryParams = {}) {
  */
 export function useVenuesByRegion(region: string | null) {
 	const queryString = buildQueryString({ region: region ?? undefined });
-	return useApiQuery<PaginatedResult<Venue>>(
-		region ? `/venues${queryString}` : null,
-	);
+	return useApiQuery<Venue[]>(region ? `/venues${queryString}` : null);
 }
 
 /**
