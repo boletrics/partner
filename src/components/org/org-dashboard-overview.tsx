@@ -2,7 +2,6 @@
 
 import type React from "react";
 
-import { useMemo } from "react";
 import {
 	Ticket,
 	DollarSign,
@@ -10,6 +9,7 @@ import {
 	Users,
 	ArrowUpRight,
 	ArrowDownRight,
+	Loader2,
 } from "lucide-react";
 import {
 	Area,
@@ -37,13 +37,11 @@ import {
 } from "@/components/ui/chart";
 import { useOrgStore } from "@/lib/org-store";
 import {
-	mockDashboardStats,
-	mockRevenueData,
-	mockEventPerformance,
-	type OrgDashboardStats,
-	type OrgRevenueData,
-	type OrgEventPerformance,
-} from "@/lib/org-mock-data";
+	useOrganizationAnalytics,
+	useRevenueAnalytics,
+	useSalesAnalytics,
+	useOrganizationEvents,
+} from "@/lib/api/hooks";
 
 function formatCurrency(amount: number, currency = "MXN") {
 	return new Intl.NumberFormat("es-MX", {
@@ -110,7 +108,22 @@ function StatCard({
 	);
 }
 
-function RevenueChart({ data }: { data: OrgRevenueData[] }) {
+interface ChartData {
+	month: string;
+	revenue: number;
+	tickets: number;
+}
+
+interface EventPerformanceData {
+	eventId: string;
+	eventName: string;
+	ticketsSold: number;
+	capacity: number;
+	revenue: number;
+	soldPercentage: number;
+}
+
+function RevenueChart({ data }: { data: ChartData[] }) {
 	const chartConfig = {
 		revenue: {
 			label: "Ingresos",
@@ -186,7 +199,7 @@ function RevenueChart({ data }: { data: OrgRevenueData[] }) {
 	);
 }
 
-function TicketsChart({ data }: { data: OrgRevenueData[] }) {
+function TicketsChart({ data }: { data: ChartData[] }) {
 	const chartConfig = {
 		tickets: {
 			label: "Boletos",
@@ -247,7 +260,7 @@ function TicketsChart({ data }: { data: OrgRevenueData[] }) {
 	);
 }
 
-function EventPerformanceCard({ events }: { events: OrgEventPerformance[] }) {
+function EventPerformanceCard({ events }: { events: EventPerformanceData[] }) {
 	return (
 		<Card className="col-span-full">
 			<CardHeader>
@@ -332,27 +345,67 @@ function QuickActions() {
 export function OrgDashboardOverview() {
 	const { currentOrg } = useOrgStore();
 
-	const stats = useMemo<OrgDashboardStats | null>(() => {
-		if (!currentOrg) return null;
-		return mockDashboardStats[currentOrg.id] || null;
-	}, [currentOrg]);
+	// Fetch analytics data from API
+	const { data: analytics, isLoading: isLoadingAnalytics } =
+		useOrganizationAnalytics();
+	const { data: revenueAnalytics } = useRevenueAnalytics();
+	const { data: salesAnalytics } = useSalesAnalytics();
+	const { data: eventsData } = useOrganizationEvents();
+	const events = eventsData?.data || [];
 
-	const revenueData = useMemo<OrgRevenueData[]>(() => {
-		if (!currentOrg) return [];
-		return mockRevenueData[currentOrg.id] || mockRevenueData["org-1"] || [];
-	}, [currentOrg]);
+	// Build stats from API data with fallbacks
+	const stats = {
+		totalRevenue: analytics?.total_revenue ?? 0,
+		revenueGrowth: revenueAnalytics?.revenue_growth ?? 0,
+		ticketsSold: analytics?.total_tickets_sold ?? 0,
+		activeEvents: analytics?.active_events ?? 0,
+		upcomingEvents: events.filter(
+			(e) => e.dates?.[0]?.date && new Date(e.dates[0].date) > new Date(),
+		).length,
+		totalCustomers: analytics?.total_orders ?? 0,
+		conversionRate: salesAnalytics?.conversion_rate ?? 0,
+	};
 
-	const eventPerformance = useMemo<OrgEventPerformance[]>(() => {
-		if (!currentOrg) return [];
-		return (
-			mockEventPerformance[currentOrg.id] || mockEventPerformance["org-1"] || []
-		);
-	}, [currentOrg]);
+	// Build revenue chart data from API
+	const revenueData = (revenueAnalytics?.revenue_by_period || []).map(
+		(item) => ({
+			month: new Date(item.date).toLocaleDateString("es-MX", {
+				month: "short",
+			}),
+			revenue: item.revenue,
+			tickets:
+				salesAnalytics?.tickets_by_period?.find((t) => t.date === item.date)
+					?.tickets ?? 0,
+		}),
+	);
 
-	if (!stats) {
+	// Build event performance from events data
+	const eventPerformance = events.slice(0, 4).map((event) => ({
+		eventId: event.id,
+		eventName: event.title,
+		ticketsSold:
+			event.ticket_types?.reduce((sum, tt) => sum + tt.quantity_sold, 0) ?? 0,
+		capacity: event.venue?.capacity ?? 0,
+		revenue:
+			event.ticket_types?.reduce(
+				(sum, tt) => sum + tt.quantity_sold * tt.price,
+				0,
+			) ?? 0,
+		soldPercentage:
+			event.venue?.capacity && event.venue.capacity > 0
+				? ((event.ticket_types?.reduce(
+						(sum, tt) => sum + tt.quantity_sold,
+						0,
+					) ?? 0) /
+						event.venue.capacity) *
+					100
+				: 0,
+	}));
+
+	if (isLoadingAnalytics) {
 		return (
 			<div className="flex items-center justify-center h-96">
-				<p className="text-muted-foreground">No hay datos disponibles</p>
+				<Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
 			</div>
 		);
 	}

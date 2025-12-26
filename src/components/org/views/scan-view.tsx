@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
 	QrCode,
 	CheckCircle,
 	XCircle,
 	AlertCircle,
 	Camera,
+	Loader2,
 } from "lucide-react";
 import {
 	Card,
@@ -26,28 +27,140 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useOrganizationEvents } from "@/lib/api/hooks";
+import { useOrgStore } from "@/lib/org-store";
+
+interface ScanStats {
+	valid: number;
+	rejected: number;
+	capacity: number;
+	scanned: number;
+}
+
+interface RecentScan {
+	name: string;
+	section: string;
+	time: string;
+	status: "success" | "error";
+}
+
+interface TicketValidationResult {
+	valid: boolean;
+	ticketType?: string;
+	holderName?: string;
+	seat?: string;
+	section?: string;
+	error?: string;
+	alreadyScanned?: boolean;
+	scannedAt?: string;
+}
 
 export function ScanView() {
+	const { currentOrg } = useOrgStore();
+	const { data: eventsData } = useOrganizationEvents();
+	const events = eventsData?.data || [];
+	const [selectedEventId, setSelectedEventId] = useState<string>("");
+	const [ticketCode, setTicketCode] = useState("");
+	const [isValidating, setIsValidating] = useState(false);
 	const [scanResult, setScanResult] = useState<{
 		status: "success" | "error" | "duplicate";
 		message: string;
 	} | null>(null);
+	const [recentScans, setRecentScans] = useState<RecentScan[]>([]);
+	const [scanStats, setScanStats] = useState<ScanStats>({
+		valid: 0,
+		rejected: 0,
+		capacity: 0,
+		scanned: 0,
+	});
 
-	const handleManualScan = () => {
-		const results = [
-			{
-				status: "success" as const,
-				message: "Boleto válido - General Admisión - Carlos Rodríguez",
-			},
-			{ status: "error" as const, message: "Boleto inválido o ya usado" },
-			{
-				status: "duplicate" as const,
-				message: "Este boleto ya fue escaneado hace 5 minutos",
-			},
-		];
-		setScanResult(results[Math.floor(Math.random() * results.length)]);
+	// Update capacity when event is selected
+	useEffect(() => {
+		const selectedEvent = events.find((e) => e.id === selectedEventId);
+		if (selectedEvent?.venue?.capacity) {
+			setScanStats((prev) => ({
+				...prev,
+				capacity: selectedEvent.venue!.capacity!,
+			}));
+		}
+	}, [selectedEventId, events]);
 
-		setTimeout(() => setScanResult(null), 5000);
+	const handleManualScan = async () => {
+		if (!ticketCode.trim() || !selectedEventId) {
+			setScanResult({
+				status: "error",
+				message: "Por favor ingresa un código de boleto y selecciona un evento",
+			});
+			setTimeout(() => setScanResult(null), 5000);
+			return;
+		}
+
+		setIsValidating(true);
+		try {
+			const response = await fetch("/api/tickets/validate", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					ticketCode: ticketCode.trim(),
+					eventId: selectedEventId,
+				}),
+			});
+
+			const result = (await response.json()) as TicketValidationResult;
+
+			if (response.ok && result.valid) {
+				setScanResult({
+					status: "success",
+					message: `Boleto válido - ${result.ticketType} - ${result.holderName}`,
+				});
+				setScanStats((prev) => ({
+					...prev,
+					valid: prev.valid + 1,
+					scanned: prev.scanned + 1,
+				}));
+				setRecentScans((prev) => [
+					{
+						name: result.holderName || "Anónimo",
+						section: result.ticketType || "General",
+						time: "Ahora",
+						status: "success",
+					},
+					...prev.slice(0, 4),
+				]);
+			} else if (result.alreadyScanned) {
+				setScanResult({
+					status: "duplicate",
+					message: `Este boleto ya fue escaneado ${result.scannedAt || "anteriormente"}`,
+				});
+			} else {
+				setScanResult({
+					status: "error",
+					message: result.error || "Boleto inválido o no encontrado",
+				});
+				setScanStats((prev) => ({
+					...prev,
+					rejected: prev.rejected + 1,
+				}));
+				setRecentScans((prev) => [
+					{
+						name: "Desconocido",
+						section: "N/A",
+						time: "Ahora",
+						status: "error",
+					},
+					...prev.slice(0, 4),
+				]);
+			}
+		} catch {
+			setScanResult({
+				status: "error",
+				message: "Error de conexión. Intenta de nuevo.",
+			});
+		} finally {
+			setIsValidating(false);
+			setTicketCode("");
+			setTimeout(() => setScanResult(null), 5000);
+		}
 	};
 
 	return (
@@ -74,20 +187,19 @@ export function ScanView() {
 						<CardContent className="space-y-4">
 							<div className="space-y-2">
 								<Label htmlFor="event-select">Evento activo</Label>
-								<Select defaultValue="event-1">
+								<Select
+									value={selectedEventId}
+									onValueChange={setSelectedEventId}
+								>
 									<SelectTrigger>
-										<SelectValue />
+										<SelectValue placeholder="Selecciona un evento" />
 									</SelectTrigger>
 									<SelectContent>
-										<SelectItem value="event-1">
-											Bad Bunny - Most Wanted Tour
-										</SelectItem>
-										<SelectItem value="event-2">
-											Festival Vive Latino 2025
-										</SelectItem>
-										<SelectItem value="event-3">
-											Shakira - Las Mujeres Ya No Lloran
-										</SelectItem>
+										{events.map((event) => (
+											<SelectItem key={event.id} value={event.id}>
+												{event.title}
+											</SelectItem>
+										))}
 									</SelectContent>
 								</Select>
 							</div>
@@ -139,9 +251,21 @@ export function ScanView() {
 									id="ticket-code"
 									placeholder="TKT-2025-XXXXX"
 									className="font-mono"
+									value={ticketCode}
+									onChange={(e) => setTicketCode(e.target.value)}
+									onKeyDown={(e) => {
+										if (e.key === "Enter") handleManualScan();
+									}}
 								/>
 							</div>
-							<Button onClick={handleManualScan} className="w-full">
+							<Button
+								onClick={handleManualScan}
+								className="w-full"
+								disabled={isValidating || !selectedEventId}
+							>
+								{isValidating && (
+									<Loader2 className="h-4 w-4 mr-2 animate-spin" />
+								)}
 								Validar boleto
 							</Button>
 						</CardContent>
@@ -160,7 +284,9 @@ export function ScanView() {
 										<CheckCircle className="h-4 w-4" />
 										<span className="text-sm font-medium">Válidos</span>
 									</div>
-									<p className="text-xl md:text-2xl font-bold">2,847</p>
+									<p className="text-xl md:text-2xl font-bold">
+										{scanStats.valid.toLocaleString()}
+									</p>
 								</div>
 
 								<div className="p-4 rounded-lg bg-red-500/10 border border-red-500/20">
@@ -168,7 +294,9 @@ export function ScanView() {
 										<XCircle className="h-4 w-4" />
 										<span className="text-sm font-medium">Rechazados</span>
 									</div>
-									<p className="text-xl md:text-2xl font-bold">12</p>
+									<p className="text-xl md:text-2xl font-bold">
+										{scanStats.rejected}
+									</p>
 								</div>
 							</div>
 
@@ -177,16 +305,26 @@ export function ScanView() {
 									<span className="text-sm text-muted-foreground">
 										Capacidad utilizada
 									</span>
-									<span className="text-sm font-medium">85.2%</span>
+									<span className="text-sm font-medium">
+										{scanStats.capacity > 0
+											? `${((scanStats.scanned / scanStats.capacity) * 100).toFixed(1)}%`
+											: "0%"}
+									</span>
 								</div>
 								<div className="w-full h-2 bg-muted rounded-full overflow-hidden">
 									<div
 										className="h-full bg-primary"
-										style={{ width: "85.2%" }}
+										style={{
+											width:
+												scanStats.capacity > 0
+													? `${Math.min((scanStats.scanned / scanStats.capacity) * 100, 100)}%`
+													: "0%",
+										}}
 									/>
 								</div>
 								<p className="text-xs text-muted-foreground mt-1">
-									2,847 de 3,500 boletos
+									{scanStats.scanned.toLocaleString()} de{" "}
+									{scanStats.capacity.toLocaleString()} boletos
 								</p>
 							</div>
 						</CardContent>
@@ -197,64 +335,39 @@ export function ScanView() {
 							<CardTitle>Últimos escaneos</CardTitle>
 						</CardHeader>
 						<CardContent>
-							<div className="space-y-3">
-								{[
-									{
-										name: "Carlos R.",
-										section: "VIP",
-										time: "Hace 2 min",
-										status: "success",
-									},
-									{
-										name: "Ana M.",
-										section: "General",
-										time: "Hace 3 min",
-										status: "success",
-									},
-									{
-										name: "Miguel H.",
-										section: "Palco A",
-										time: "Hace 5 min",
-										status: "success",
-									},
-									{
-										name: "Laura S.",
-										section: "VIP",
-										time: "Hace 7 min",
-										status: "error",
-									},
-									{
-										name: "Pedro M.",
-										section: "General",
-										time: "Hace 8 min",
-										status: "success",
-									},
-								].map((scan, i) => (
-									<div
-										key={i}
-										className="flex items-center justify-between p-3 rounded-lg border gap-2"
-									>
-										<div className="flex items-center gap-3 min-w-0">
-											{scan.status === "success" ? (
-												<CheckCircle className="h-5 w-5 text-green-600 shrink-0" />
-											) : (
-												<XCircle className="h-5 w-5 text-red-600 shrink-0" />
-											)}
-											<div className="min-w-0">
-												<p className="font-medium text-sm truncate">
-													{scan.name}
-												</p>
-												<p className="text-xs text-muted-foreground">
-													{scan.section}
-												</p>
+							{recentScans.length === 0 ? (
+								<p className="text-sm text-muted-foreground text-center py-8">
+									No hay escaneos recientes. Comienza validando un boleto.
+								</p>
+							) : (
+								<div className="space-y-3">
+									{recentScans.map((scan, i) => (
+										<div
+											key={i}
+											className="flex items-center justify-between p-3 rounded-lg border gap-2"
+										>
+											<div className="flex items-center gap-3 min-w-0">
+												{scan.status === "success" ? (
+													<CheckCircle className="h-5 w-5 text-green-600 shrink-0" />
+												) : (
+													<XCircle className="h-5 w-5 text-red-600 shrink-0" />
+												)}
+												<div className="min-w-0">
+													<p className="font-medium text-sm truncate">
+														{scan.name}
+													</p>
+													<p className="text-xs text-muted-foreground">
+														{scan.section}
+													</p>
+												</div>
 											</div>
+											<span className="text-xs text-muted-foreground whitespace-nowrap">
+												{scan.time}
+											</span>
 										</div>
-										<span className="text-xs text-muted-foreground whitespace-nowrap">
-											{scan.time}
-										</span>
-									</div>
-								))}
-							</div>
+									))}
+								</div>
+							)}
 						</CardContent>
 					</Card>
 				</div>
