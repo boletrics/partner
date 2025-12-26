@@ -36,11 +36,19 @@ import { Separator } from "@/components/ui/separator";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCreateEvent } from "@/lib/api/hooks/use-events";
+import { apiFetch } from "@/lib/api/client";
 import { useVenues, useCreateVenue } from "@/lib/api/hooks/use-venues";
 import { useOrgStore } from "@/lib/org-store";
 import type { EventCategory, CreateEventInput } from "@/lib/api/types";
 import { toast } from "sonner";
 import { ImageUpload } from "@/components/ui/image-upload";
+
+interface EventDateForm {
+	id: string;
+	date: string;
+	start_time: string;
+	end_time: string;
+}
 
 interface TicketTypeForm {
 	id: string;
@@ -66,12 +74,14 @@ export function EventsNewView() {
 		image_url: "",
 		image_blur: "", // Base64 blur placeholder for Next.js Image
 		venue_id: "",
-		date: "",
-		start_time: "",
-		end_time: "",
 		isPublic: true,
 		allowSales: true,
 	});
+
+	// Event dates (1:n relationship)
+	const [eventDates, setEventDates] = useState<EventDateForm[]>([
+		{ id: "1", date: "", start_time: "", end_time: "" },
+	]);
 
 	// New venue form (for when venue doesn't exist)
 	const [showNewVenue, setShowNewVenue] = useState(false);
@@ -97,6 +107,13 @@ export function EventsNewView() {
 
 		if (!formData.title || !formData.category || !formData.venue_id) {
 			toast.error("Por favor completa los campos obligatorios");
+			return;
+		}
+
+		// Validate at least one date is provided
+		const validDates = eventDates.filter((d) => d.date && d.start_time);
+		if (validDates.length === 0) {
+			toast.error("Por favor agrega al menos una fecha para el evento");
 			return;
 		}
 
@@ -127,6 +144,23 @@ export function EventsNewView() {
 			};
 
 			const event = await createEvent(eventInput);
+
+			// Create event dates
+			for (const eventDate of validDates) {
+				try {
+					await apiFetch("/event-dates", {
+						method: "POST",
+						body: {
+							event_id: event.id,
+							date: eventDate.date,
+							start_time: eventDate.start_time,
+							end_time: eventDate.end_time || null,
+						},
+					});
+				} catch (err) {
+					console.error("Error creating event date:", err);
+				}
+			}
 
 			toast.success(
 				publish ? "Evento publicado exitosamente" : "Borrador guardado",
@@ -194,6 +228,35 @@ export function EventsNewView() {
 	) => {
 		setTicketTypes(
 			ticketTypes.map((t) => (t.id === id ? { ...t, [field]: value } : t)),
+		);
+	};
+
+	// Event date management
+	const addEventDate = () => {
+		setEventDates([
+			...eventDates,
+			{
+				id: Date.now().toString(),
+				date: "",
+				start_time: "",
+				end_time: "",
+			},
+		]);
+	};
+
+	const removeEventDate = (id: string) => {
+		if (eventDates.length > 1) {
+			setEventDates(eventDates.filter((d) => d.id !== id));
+		}
+	};
+
+	const updateEventDate = (
+		id: string,
+		field: keyof EventDateForm,
+		value: string,
+	) => {
+		setEventDates(
+			eventDates.map((d) => (d.id === id ? { ...d, [field]: value } : d)),
 		);
 	};
 
@@ -452,41 +515,83 @@ export function EventsNewView() {
 
 							<Separator />
 
-							<div className="grid gap-4 sm:grid-cols-2">
-								<div className="space-y-2">
-									<Label htmlFor="date">Fecha del evento *</Label>
-									<Input
-										id="date"
-										type="date"
-										value={formData.date}
-										onChange={(e) =>
-											setFormData({ ...formData, date: e.target.value })
-										}
-									/>
+							<div className="space-y-4">
+								<div className="flex items-center justify-between">
+									<Label>Fechas del evento *</Label>
+									<Button
+										type="button"
+										variant="outline"
+										size="sm"
+										onClick={addEventDate}
+									>
+										<Plus className="h-4 w-4 mr-1" />
+										Agregar fecha
+									</Button>
 								</div>
-								<div className="space-y-2">
-									<Label htmlFor="time">Hora de inicio *</Label>
-									<Input
-										id="time"
-										type="time"
-										value={formData.start_time}
-										onChange={(e) =>
-											setFormData({ ...formData, start_time: e.target.value })
-										}
-									/>
-								</div>
-							</div>
 
-							<div className="space-y-2">
-								<Label htmlFor="end">Hora de finalización</Label>
-								<Input
-									id="end"
-									type="time"
-									value={formData.end_time}
-									onChange={(e) =>
-										setFormData({ ...formData, end_time: e.target.value })
-									}
-								/>
+								{eventDates.map((eventDate, index) => (
+									<div
+										key={eventDate.id}
+										className="p-4 border rounded-lg space-y-4 bg-muted/30"
+									>
+										<div className="flex items-center justify-between">
+											<p className="font-medium text-sm">Fecha {index + 1}</p>
+											{eventDates.length > 1 && (
+												<Button
+													variant="ghost"
+													size="sm"
+													onClick={() => removeEventDate(eventDate.id)}
+												>
+													<Trash2 className="h-4 w-4 text-destructive" />
+												</Button>
+											)}
+										</div>
+										<div className="grid gap-4 sm:grid-cols-3">
+											<div className="space-y-2">
+												<Label>Fecha *</Label>
+												<Input
+													type="date"
+													value={eventDate.date}
+													onChange={(e) =>
+														updateEventDate(
+															eventDate.id,
+															"date",
+															e.target.value,
+														)
+													}
+												/>
+											</div>
+											<div className="space-y-2">
+												<Label>Hora de inicio *</Label>
+												<Input
+													type="time"
+													value={eventDate.start_time}
+													onChange={(e) =>
+														updateEventDate(
+															eventDate.id,
+															"start_time",
+															e.target.value,
+														)
+													}
+												/>
+											</div>
+											<div className="space-y-2">
+												<Label>Hora de fin</Label>
+												<Input
+													type="time"
+													value={eventDate.end_time}
+													onChange={(e) =>
+														updateEventDate(
+															eventDate.id,
+															"end_time",
+															e.target.value,
+														)
+													}
+												/>
+											</div>
+										</div>
+									</div>
+								))}
 							</div>
 						</CardContent>
 					</Card>

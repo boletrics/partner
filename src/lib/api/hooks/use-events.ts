@@ -158,21 +158,35 @@ export function useCancelEvent(eventId: string) {
 }
 
 // ============================================================================
-// Event Dates Mutations
+// Event Dates Hooks
 // ============================================================================
+
+/**
+ * Fetch event dates for a specific event.
+ */
+export function useEventDates(eventId: string | null) {
+	const queryString = eventId ? buildQueryString({ event_id: eventId }) : "";
+	return useApiQuery<EventDate[]>(
+		eventId ? `/event-dates${queryString}` : null,
+	);
+}
 
 /**
  * Add a date to an event.
  */
 export function useAddEventDate(eventId: string) {
-	const mutation = useApiMutation<
-		EventDate,
-		Omit<CreateEventDateInput, "event_id">
-	>(`/events/${eventId}/dates`, "POST");
+	const mutation = useApiMutation<EventDate, CreateEventDateInput>(
+		`/event-dates`,
+		"POST",
+	);
 
 	const addDate = async (data: Omit<CreateEventDateInput, "event_id">) => {
-		const result = await mutation.trigger(data);
+		const result = await mutation.trigger({
+			...data,
+			event_id: eventId,
+		});
 		revalidate(`/events/${eventId}`);
+		revalidate(/\/event-dates/);
 		return result;
 	};
 
@@ -183,17 +197,42 @@ export function useAddEventDate(eventId: string) {
 }
 
 /**
+ * Update an event date.
+ */
+export function useUpdateEventDate(eventId: string, dateId: string) {
+	const mutation = useApiMutation<
+		EventDate,
+		Partial<Omit<CreateEventDateInput, "event_id">>
+	>(`/event-dates/${dateId}`, "PUT");
+
+	const updateDate = async (
+		data: Partial<Omit<CreateEventDateInput, "event_id">>,
+	) => {
+		const result = await mutation.trigger(data);
+		revalidate(`/events/${eventId}`);
+		revalidate(/\/event-dates/);
+		return result;
+	};
+
+	return {
+		...mutation,
+		updateDate,
+	};
+}
+
+/**
  * Remove a date from an event.
  */
 export function useRemoveEventDate(eventId: string, dateId: string) {
 	const mutation = useApiMutation<void, void>(
-		`/events/${eventId}/dates/${dateId}`,
+		`/event-dates/${dateId}`,
 		"DELETE",
 	);
 
 	const removeDate = async () => {
 		await mutation.trigger();
 		revalidate(`/events/${eventId}`);
+		revalidate(/\/event-dates/);
 	};
 
 	return {

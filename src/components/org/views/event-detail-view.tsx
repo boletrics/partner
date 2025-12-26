@@ -13,6 +13,7 @@ import {
 	XCircle,
 	Loader2,
 	ExternalLink,
+	Plus,
 } from "lucide-react";
 import {
 	Card,
@@ -34,6 +35,16 @@ import {
 	AlertDialogHeader,
 	AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -41,7 +52,10 @@ import {
 	useDeleteEvent,
 	usePublishEvent,
 	useCancelEvent,
+	useEventDates,
+	useAddEventDate,
 } from "@/lib/api/hooks/use-events";
+import { apiFetch } from "@/lib/api/client";
 import { toast } from "sonner";
 
 interface EventDetailViewProps {
@@ -74,14 +88,35 @@ const categoryLabels: Record<string, string> = {
 export function EventDetailView({ eventId }: EventDetailViewProps) {
 	const router = useRouter();
 	const { data: event, isLoading, error, mutate } = useEvent(eventId);
+	const { data: eventDates, mutate: mutateDates } = useEventDates(eventId);
 	const { deleteEvent } = useDeleteEvent(eventId);
 	const { publishEvent } = usePublishEvent(eventId);
 	const { cancelEvent } = useCancelEvent(eventId);
+	const { addDate, isMutating: isAddingDate } = useAddEventDate(eventId);
 
 	const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+	const [showAddDateDialog, setShowAddDateDialog] = useState(false);
+	const [showEditDateDialog, setShowEditDateDialog] = useState(false);
 	const [isDeleting, setIsDeleting] = useState(false);
 	const [isPublishing, setIsPublishing] = useState(false);
 	const [isCancelling, setIsCancelling] = useState(false);
+	const [deletingDateId, setDeletingDateId] = useState<string | null>(null);
+	const [isUpdatingDate, setIsUpdatingDate] = useState(false);
+
+	// New date form state
+	const [newDate, setNewDate] = useState({
+		date: "",
+		start_time: "",
+		end_time: "",
+	});
+
+	// Edit date form state
+	const [editingDate, setEditingDate] = useState<{
+		id: string;
+		date: string;
+		start_time: string;
+		end_time: string;
+	} | null>(null);
 
 	const handleDelete = async () => {
 		setIsDeleting(true);
@@ -120,6 +155,42 @@ export function EventDetailView({ eventId }: EventDetailViewProps) {
 			toast.error("Error al cancelar el evento");
 		} finally {
 			setIsCancelling(false);
+		}
+	};
+
+	const handleAddDate = async () => {
+		if (!newDate.date || !newDate.start_time) {
+			toast.error("Por favor completa la fecha y hora de inicio");
+			return;
+		}
+
+		try {
+			await addDate({
+				date: newDate.date,
+				start_time: newDate.start_time,
+				end_time: newDate.end_time || undefined,
+			});
+			mutateDates();
+			mutate();
+			setShowAddDateDialog(false);
+			setNewDate({ date: "", start_time: "", end_time: "" });
+			toast.success("Fecha agregada");
+		} catch {
+			toast.error("Error al agregar la fecha");
+		}
+	};
+
+	const handleDeleteDate = async (dateId: string) => {
+		setDeletingDateId(dateId);
+		try {
+			await apiFetch(`/event-dates/${dateId}`, { method: "DELETE" });
+			mutateDates();
+			mutate();
+			toast.success("Fecha eliminada");
+		} catch {
+			toast.error("Error al eliminar la fecha");
+		} finally {
+			setDeletingDateId(null);
 		}
 	};
 
@@ -332,31 +403,60 @@ export function EventDetailView({ eventId }: EventDetailViewProps) {
 					{/* Dates */}
 					<Card>
 						<CardHeader>
-							<CardTitle className="flex items-center gap-2">
-								<Calendar className="h-5 w-5" />
-								Fechas
-							</CardTitle>
+							<div className="flex items-center justify-between">
+								<CardTitle className="flex items-center gap-2">
+									<Calendar className="h-5 w-5" />
+									Fechas
+								</CardTitle>
+								<Button
+									variant="outline"
+									size="sm"
+									onClick={() => setShowAddDateDialog(true)}
+								>
+									<Plus className="h-4 w-4 mr-1" />
+									Agregar
+								</Button>
+							</div>
 						</CardHeader>
 						<CardContent>
-							{event.dates && event.dates.length > 0 ? (
+							{(eventDates ?? event.dates ?? []).length > 0 ? (
 								<div className="space-y-2">
-									{event.dates.map((date) => (
+									{(eventDates ?? event.dates ?? []).map((date) => (
 										<div
 											key={date.id}
-											className="p-2 border rounded-lg text-sm"
+											className="p-2 border rounded-lg text-sm group"
 										>
-											<p className="font-medium">
-												{new Date(date.date).toLocaleDateString("es-MX", {
-													weekday: "long",
-													year: "numeric",
-													month: "long",
-													day: "numeric",
-												})}
-											</p>
-											<p className="text-muted-foreground">
-												{date.start_time}
-												{date.end_time && ` - ${date.end_time}`}
-											</p>
+											<div className="flex items-start justify-between">
+												<div>
+													<p className="font-medium">
+														{new Date(
+															date.date + "T00:00:00",
+														).toLocaleDateString("es-MX", {
+															weekday: "long",
+															year: "numeric",
+															month: "long",
+															day: "numeric",
+														})}
+													</p>
+													<p className="text-muted-foreground">
+														{date.start_time}
+														{date.end_time && ` - ${date.end_time}`}
+													</p>
+												</div>
+												<Button
+													variant="ghost"
+													size="sm"
+													className="opacity-0 group-hover:opacity-100 transition-opacity"
+													onClick={() => handleDeleteDate(date.id)}
+													disabled={deletingDateId === date.id}
+												>
+													{deletingDateId === date.id ? (
+														<Loader2 className="h-4 w-4 animate-spin" />
+													) : (
+														<Trash2 className="h-4 w-4 text-destructive" />
+													)}
+												</Button>
+											</div>
 										</div>
 									))}
 								</div>
@@ -471,6 +571,69 @@ export function EventDetailView({ eventId }: EventDetailViewProps) {
 					</AlertDialogFooter>
 				</AlertDialogContent>
 			</AlertDialog>
+
+			{/* Add Date Dialog */}
+			<Dialog open={showAddDateDialog} onOpenChange={setShowAddDateDialog}>
+				<DialogContent>
+					<DialogHeader>
+						<DialogTitle>Agregar fecha</DialogTitle>
+						<DialogDescription>
+							Agrega una nueva fecha para este evento.
+						</DialogDescription>
+					</DialogHeader>
+					<div className="space-y-4 py-4">
+						<div className="space-y-2">
+							<Label htmlFor="new-date">Fecha *</Label>
+							<Input
+								id="new-date"
+								type="date"
+								value={newDate.date}
+								onChange={(e) =>
+									setNewDate({ ...newDate, date: e.target.value })
+								}
+							/>
+						</div>
+						<div className="grid gap-4 grid-cols-2">
+							<div className="space-y-2">
+								<Label htmlFor="new-start-time">Hora de inicio *</Label>
+								<Input
+									id="new-start-time"
+									type="time"
+									value={newDate.start_time}
+									onChange={(e) =>
+										setNewDate({ ...newDate, start_time: e.target.value })
+									}
+								/>
+							</div>
+							<div className="space-y-2">
+								<Label htmlFor="new-end-time">Hora de fin</Label>
+								<Input
+									id="new-end-time"
+									type="time"
+									value={newDate.end_time}
+									onChange={(e) =>
+										setNewDate({ ...newDate, end_time: e.target.value })
+									}
+								/>
+							</div>
+						</div>
+					</div>
+					<DialogFooter>
+						<Button
+							variant="outline"
+							onClick={() => setShowAddDateDialog(false)}
+						>
+							Cancelar
+						</Button>
+						<Button onClick={handleAddDate} disabled={isAddingDate}>
+							{isAddingDate && (
+								<Loader2 className="h-4 w-4 mr-2 animate-spin" />
+							)}
+							Agregar fecha
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
 		</div>
 	);
 }
