@@ -194,6 +194,50 @@ export function EventDetailView({ eventId }: EventDetailViewProps) {
 		}
 	};
 
+	const handleEditDate = (date: {
+		id: string;
+		date: string;
+		start_time: string;
+		end_time?: string | null;
+	}) => {
+		setEditingDate({
+			id: date.id,
+			date: date.date,
+			start_time: date.start_time,
+			end_time: date.end_time || "",
+		});
+		setShowEditDateDialog(true);
+	};
+
+	const handleUpdateDate = async () => {
+		if (!editingDate || !editingDate.date || !editingDate.start_time) {
+			toast.error("Por favor completa la fecha y hora de inicio");
+			return;
+		}
+
+		setIsUpdatingDate(true);
+		try {
+			await apiFetch(`/event-dates/${editingDate.id}`, {
+				method: "PUT",
+				body: {
+					event_id: eventId,
+					date: editingDate.date,
+					start_time: editingDate.start_time,
+					end_time: editingDate.end_time || null,
+				},
+			});
+			mutateDates();
+			mutate();
+			setShowEditDateDialog(false);
+			setEditingDate(null);
+			toast.success("Fecha actualizada");
+		} catch {
+			toast.error("Error al actualizar la fecha");
+		} finally {
+			setIsUpdatingDate(false);
+		}
+	};
+
 	if (isLoading) {
 		return (
 			<div className="flex items-center justify-center min-h-[400px]">
@@ -443,19 +487,27 @@ export function EventDetailView({ eventId }: EventDetailViewProps) {
 														{date.end_time && ` - ${date.end_time}`}
 													</p>
 												</div>
-												<Button
-													variant="ghost"
-													size="sm"
-													className="opacity-0 group-hover:opacity-100 transition-opacity"
-													onClick={() => handleDeleteDate(date.id)}
-													disabled={deletingDateId === date.id}
-												>
-													{deletingDateId === date.id ? (
-														<Loader2 className="h-4 w-4 animate-spin" />
-													) : (
-														<Trash2 className="h-4 w-4 text-destructive" />
-													)}
-												</Button>
+												<div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+													<Button
+														variant="ghost"
+														size="sm"
+														onClick={() => handleEditDate(date)}
+													>
+														<Edit className="h-4 w-4" />
+													</Button>
+													<Button
+														variant="ghost"
+														size="sm"
+														onClick={() => handleDeleteDate(date.id)}
+														disabled={deletingDateId === date.id}
+													>
+														{deletingDateId === date.id ? (
+															<Loader2 className="h-4 w-4 animate-spin" />
+														) : (
+															<Trash2 className="h-4 w-4 text-destructive" />
+														)}
+													</Button>
+												</div>
 											</div>
 										</div>
 									))}
@@ -630,6 +682,86 @@ export function EventDetailView({ eventId }: EventDetailViewProps) {
 								<Loader2 className="h-4 w-4 mr-2 animate-spin" />
 							)}
 							Agregar fecha
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+
+			{/* Edit Date Dialog */}
+			<Dialog
+				open={showEditDateDialog}
+				onOpenChange={(open) => {
+					setShowEditDateDialog(open);
+					if (!open) setEditingDate(null);
+				}}
+			>
+				<DialogContent>
+					<DialogHeader>
+						<DialogTitle>Editar fecha</DialogTitle>
+						<DialogDescription>
+							Modifica la fecha y horarios del evento.
+						</DialogDescription>
+					</DialogHeader>
+					{editingDate && (
+						<div className="space-y-4 py-4">
+							<div className="space-y-2">
+								<Label htmlFor="edit-date">Fecha *</Label>
+								<Input
+									id="edit-date"
+									type="date"
+									value={editingDate.date}
+									onChange={(e) =>
+										setEditingDate({ ...editingDate, date: e.target.value })
+									}
+								/>
+							</div>
+							<div className="grid gap-4 grid-cols-2">
+								<div className="space-y-2">
+									<Label htmlFor="edit-start-time">Hora de inicio *</Label>
+									<Input
+										id="edit-start-time"
+										type="time"
+										value={editingDate.start_time}
+										onChange={(e) =>
+											setEditingDate({
+												...editingDate,
+												start_time: e.target.value,
+											})
+										}
+									/>
+								</div>
+								<div className="space-y-2">
+									<Label htmlFor="edit-end-time">Hora de fin</Label>
+									<Input
+										id="edit-end-time"
+										type="time"
+										value={editingDate.end_time}
+										onChange={(e) =>
+											setEditingDate({
+												...editingDate,
+												end_time: e.target.value,
+											})
+										}
+									/>
+								</div>
+							</div>
+						</div>
+					)}
+					<DialogFooter>
+						<Button
+							variant="outline"
+							onClick={() => {
+								setShowEditDateDialog(false);
+								setEditingDate(null);
+							}}
+						>
+							Cancelar
+						</Button>
+						<Button onClick={handleUpdateDate} disabled={isUpdatingDate}>
+							{isUpdatingDate && (
+								<Loader2 className="h-4 w-4 mr-2 animate-spin" />
+							)}
+							Guardar cambios
 						</Button>
 					</DialogFooter>
 				</DialogContent>
