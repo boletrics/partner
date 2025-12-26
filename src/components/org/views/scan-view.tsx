@@ -151,7 +151,7 @@ export function ScanView() {
 					...prev.slice(0, 4),
 				]);
 			}
-		} catch (error) {
+		} catch {
 			setScanResult({
 				status: "error",
 				message: "Error de conexión. Intenta de nuevo.",
