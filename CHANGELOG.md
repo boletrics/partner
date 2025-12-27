@@ -1,3 +1,14 @@
+# [1.7.0](https://github.com/boletrics/partner/compare/v1.6.0...v1.7.0) (2025-12-27)
+
+
+### Features
+
+* **events:** add edit date functionality to event detail view ([002d64b](https://github.com/boletrics/partner/commit/002d64bd65f436fb475344b2b88023381f85aa30))
+* **events:** add event detail page and enhance event management features ([ad6eee0](https://github.com/boletrics/partner/commit/ad6eee0d4cc0ea9ac8861d4cd8518b57057ca484))
+* **events:** enhance event date management ([b2036ff](https://github.com/boletrics/partner/commit/b2036ffe3610d04ca535c0e8505e18322c0e385b))
+* **events:** implement event editing page with date and venue management ([985bb22](https://github.com/boletrics/partner/commit/985bb2203a8ab391bdef251cb8e077058a9088ce))
+* **events:** implement image upload functionality with blur placeholder for event creation ([6de72cd](https://github.com/boletrics/partner/commit/6de72cdc16adb17864b17ad10088fe7057264876))
+
 # [1.6.0](https://github.com/boletrics/partner/compare/v1.5.1...v1.6.0) (2025-12-26)
 
 
