@@ -1,11 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
 	ArrowLeft,
 	Calendar,
 	MapPin,
-	Ticket,
 	ImageIcon,
 	Save,
 	Eye,
@@ -34,12 +33,16 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useCreateEvent } from "@/lib/api/hooks/use-events";
-import { apiFetch } from "@/lib/api/client";
+import { useRouter, useParams } from "next/navigation";
+import {
+	useEvent,
+	useUpdateEvent,
+	useEventDates,
+	useAddEventDate,
+	useRemoveEventDate,
+} from "@/lib/api/hooks/use-events";
 import { useVenues, useCreateVenue } from "@/lib/api/hooks/use-venues";
-import { useOrgStore } from "@/lib/org-store";
-import type { EventCategory, CreateEventInput } from "@/lib/api/types";
+import type { EventCategory } from "@/lib/api/types";
 import { toast } from "sonner";
 import { ImageUpload } from "@/components/ui/image-upload";
 
@@ -48,22 +51,20 @@ interface EventDateForm {
 	date: string;
 	start_time: string;
 	end_time: string;
+	isNew?: boolean;
 }
 
-interface TicketTypeForm {
-	id: string;
-	name: string;
-	price: number;
-	quantity: number;
-	description: string;
-}
-
-export function EventsNewView() {
+export default function EditEventPage() {
 	const router = useRouter();
-	const { currentOrg } = useOrgStore();
-	const { createEvent, isMutating } = useCreateEvent();
+	const params = useParams();
+	const eventId = params.id as string;
+
+	const { data: event, isLoading: isLoadingEvent } = useEvent(eventId);
+	const { updateEvent, isMutating } = useUpdateEvent(eventId);
 	const { data: venues = [] } = useVenues();
 	const { createVenue } = useCreateVenue();
+	const { data: existingDates = [] } = useEventDates(eventId);
+	const { addDate } = useAddEventDate(eventId);
 
 	// Form state
 	const [formData, setFormData] = useState({
@@ -72,18 +73,16 @@ export function EventsNewView() {
 		description: "",
 		artist: "",
 		image_url: "",
-		image_blur: "", // Base64 blur placeholder for Next.js Image
+		image_blur: "",
 		venue_id: "",
 		isPublic: true,
 		allowSales: true,
 	});
 
 	// Event dates (1:n relationship)
-	const [eventDates, setEventDates] = useState<EventDateForm[]>([
-		{ id: "1", date: "", start_time: "", end_time: "" },
-	]);
+	const [eventDates, setEventDates] = useState<EventDateForm[]>([]);
 
-	// New venue form (for when venue doesn't exist)
+	// New venue form
 	const [showNewVenue, setShowNewVenue] = useState(false);
 	const [newVenue, setNewVenue] = useState({
 		name: "",
@@ -94,101 +93,90 @@ export function EventsNewView() {
 		capacity: 0,
 	});
 
-	// Ticket types (to be created after event)
-	const [ticketTypes, setTicketTypes] = useState<TicketTypeForm[]>([
-		{ id: "1", name: "General", price: 500, quantity: 100, description: "" },
-	]);
+	// Load event data into form
+	useEffect(() => {
+		if (event) {
+			setFormData({
+				title: event.title,
+				category: event.category,
+				description: event.description ?? "",
+				artist: event.artist ?? "",
+				image_url: event.image_url ?? "",
+				image_blur: event.image_blur ?? "",
+				venue_id: event.venue_id,
+				isPublic: true,
+				allowSales: true,
+			});
+		}
+	}, [event]);
+
+	// Load existing dates
+	useEffect(() => {
+		if (existingDates.length > 0) {
+			setEventDates(
+				existingDates.map((d) => ({
+					id: d.id,
+					date: d.date,
+					start_time: d.start_time,
+					end_time: d.end_time ?? "",
+					isNew: false,
+				})),
+			);
+		} else if (event?.dates && event.dates.length > 0) {
+			setEventDates(
+				event.dates.map((d) => ({
+					id: d.id,
+					date: d.date,
+					start_time: d.start_time,
+					end_time: d.end_time ?? "",
+					isNew: false,
+				})),
+			);
+		}
+	}, [existingDates, event?.dates]);
 
 	const handleSave = async (publish = false) => {
-		if (!currentOrg) {
-			toast.error("No hay organización seleccionada");
-			return;
-		}
-
 		if (!formData.title || !formData.category || !formData.venue_id) {
 			toast.error("Por favor completa los campos obligatorios");
 			return;
 		}
 
-		// Validate at least one date is provided
-		const validDates = eventDates.filter((d) => d.date && d.start_time);
-		if (validDates.length === 0) {
-			toast.error("Por favor agrega al menos una fecha para el evento");
-			return;
-		}
-
 		try {
-			// Generate slug from title
-			const slug = formData.title
-				.toLowerCase()
-				.normalize("NFD")
-				.replace(/[\u0300-\u036f]/g, "") // Remove accents
-				.replace(/[^a-z0-9\s-]/g, "") // Remove special chars
-				.replace(/\s+/g, "-") // Replace spaces with dashes
-				.replace(/-+/g, "-") // Replace multiple dashes with single
-				.replace(/^-|-$/g, ""); // Remove leading/trailing dashes
-
-			// Create the event
-			const eventInput: CreateEventInput = {
-				org_id: currentOrg.id,
+			// Update the event
+			await updateEvent({
 				venue_id: formData.venue_id,
 				title: formData.title,
-				slug,
 				category: formData.category as EventCategory,
 				description: formData.description || undefined,
 				artist: formData.artist || undefined,
 				image_url: formData.image_url || undefined,
 				image_blur: formData.image_blur || undefined,
-				status: publish ? "published" : "draft",
+				status: publish ? "published" : event?.status,
 				published_at: publish ? new Date().toISOString() : undefined,
-			};
+			});
 
-			const event = await createEvent(eventInput);
-
-			// Create event dates
-			for (const eventDate of validDates) {
-				try {
-					await apiFetch("/event-dates", {
-						method: "POST",
-						body: {
-							event_id: event.id,
-							date: eventDate.date,
-							start_time: eventDate.start_time,
-							end_time: eventDate.end_time || null,
-						},
-					});
-				} catch (err) {
-					console.error("Error creating event date:", err);
-				}
-			}
-
-			// Create ticket types
-			const validTickets = ticketTypes.filter(
-				(t) => t.name && t.price > 0 && t.quantity > 0,
+			// Add new dates
+			const newDates = eventDates.filter(
+				(d) => d.isNew && d.date && d.start_time,
 			);
-			for (const ticket of validTickets) {
+			for (const newDate of newDates) {
 				try {
-					await apiFetch("/ticket-types", {
-						method: "POST",
-						body: {
-							event_id: event.id,
-							name: ticket.name,
-							description: ticket.description || null,
-							price: ticket.price,
-							quantity_total: ticket.quantity,
-						},
+					await addDate({
+						date: newDate.date,
+						start_time: newDate.start_time,
+						end_time: newDate.end_time || undefined,
 					});
 				} catch (err) {
-					console.error("Error creating ticket type:", err);
+					console.error("Error adding date:", err);
 				}
 			}
 
 			toast.success(
-				publish ? "Evento publicado exitosamente" : "Borrador guardado",
+				publish ? "Evento publicado exitosamente" : "Cambios guardados",
 			);
-			router.push(`/events/${event.id}`);
+			router.push(`/events/${eventId}`);
 		} catch (error) {
-			toast.error("Error al crear el evento");
+			toast.error("Error al actualizar el evento");
 			console.error(error);
 		}
 	};
@@ -218,41 +206,11 @@ export function EventsNewView() {
 			setFormData({ ...formData, venue_id: venue.id });
 			setShowNewVenue(false);
 			toast.success("Lugar creado exitosamente");
-		} catch (error) {
+		} catch {
 			toast.error("Error al crear el lugar");
 		}
 	};
 
-	const addTicketType = () => {
-		setTicketTypes([
-			...ticketTypes,
-			{
-				id: Date.now().toString(),
-				name: "",
-				price: 0,
-				quantity: 0,
-				description: "",
-			},
-		]);
-	};
-
-	const removeTicketType = (id: string) => {
-		if (ticketTypes.length > 1) {
-			setTicketTypes(ticketTypes.filter((t) => t.id !== id));
-		}
-	};
-
-	const updateTicketType = (
-		id: string,
-		field: keyof TicketTypeForm,
-		value: string | number,
-	) => {
-		setTicketTypes(
-			ticketTypes.map((t) => (t.id === id ? { ...t, [field]: value } : t)),
-		);
-	};
-
-	// Event date management
 	const addEventDate = () => {
 		setEventDates([
 			...eventDates,
@@ -261,12 +219,24 @@ export function EventsNewView() {
 				date: "",
 				start_time: "",
 				end_time: "",
+				isNew: true,
 			},
 		]);
 	};
 
-	const removeEventDate = (id: string) => {
+	const removeEventDate = async (id: string, isNew?: boolean) => {
 		if (eventDates.length > 1) {
+			if (!isNew) {
+				// Remove from server
+				try {
+					const { removeDate } = useRemoveEventDate(eventId, id);
+					await removeDate();
+					toast.success("Fecha eliminada");
+				} catch {
+					toast.error("Error al eliminar la fecha");
+					return;
+				}
+			}
 			setEventDates(eventDates.filter((d) => d.id !== id));
 		}
 	};
@@ -281,12 +251,21 @@ export function EventsNewView() {
 		);
 	};
 
-	if (!currentOrg) {
+	if (isLoadingEvent) {
 		return (
-			<div className="p-6 flex items-center justify-center min-h-[400px]">
-				<p className="text-muted-foreground">
-					Selecciona una organización para crear eventos
-				</p>
+			<div className="flex items-center justify-center min-h-[400px]">
+				<Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+			</div>
+		);
+	}
+
+	if (!event) {
+		return (
+			<div className="p-6">
+				<h1 className="text-2xl font-bold">Evento no encontrado</h1>
+				<Button asChild className="mt-4">
+					<Link href="/events">Volver a eventos</Link>
+				</Button>
 			</div>
 		);
 	}
@@ -295,16 +274,14 @@ export function EventsNewView() {
 		<div className="p-6 space-y-6">
 			<div className="flex items-center gap-4">
 				<Button variant="ghost" size="icon" asChild>
-					<Link href="/events">
+					<Link href={`/events/${eventId}`}>
 						<ArrowLeft className="h-5 w-5" />
 					</Link>
 				</Button>
 				<div className="flex-1">
-					<h1 className="text-2xl font-bold tracking-tight">
-						Crear nuevo evento
-					</h1>
+					<h1 className="text-2xl font-bold tracking-tight">Editar evento</h1>
 					<p className="text-muted-foreground">
-						Configura los detalles de tu evento
+						Modifica los detalles del evento
 					</p>
 				</div>
 				<div className="flex gap-2">
@@ -314,17 +291,19 @@ export function EventsNewView() {
 						disabled={isMutating}
 					>
 						{isMutating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-						Guardar borrador
+						Guardar cambios
 					</Button>
-					<Button
-						onClick={() => handleSave(true)}
-						disabled={isMutating}
-						className="gap-2"
-					>
-						{isMutating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-						<Save className="h-4 w-4" />
-						Publicar evento
-					</Button>
+					{event.status === "draft" && (
+						<Button
+							onClick={() => handleSave(true)}
+							disabled={isMutating}
+							className="gap-2"
+						>
+							{isMutating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+							<Save className="h-4 w-4" />
+							Publicar evento
+						</Button>
+					)}
 				</div>
 			</div>
 
@@ -489,45 +468,6 @@ export function EventsNewView() {
 											/>
 										</div>
 									</div>
-									<div className="grid gap-4 sm:grid-cols-2">
-										<div className="space-y-2">
-											<Label>Región</Label>
-											<Select
-												value={newVenue.region}
-												onValueChange={(value: typeof newVenue.region) =>
-													setNewVenue({ ...newVenue, region: value })
-												}
-											>
-												<SelectTrigger>
-													<SelectValue />
-												</SelectTrigger>
-												<SelectContent>
-													<SelectItem value="mexico-city">
-														Ciudad de México
-													</SelectItem>
-													<SelectItem value="monterrey">Monterrey</SelectItem>
-													<SelectItem value="guadalajara">
-														Guadalajara
-													</SelectItem>
-													<SelectItem value="cancun">Cancún</SelectItem>
-												</SelectContent>
-											</Select>
-										</div>
-										<div className="space-y-2">
-											<Label>Capacidad</Label>
-											<Input
-												type="number"
-												placeholder="5000"
-												value={newVenue.capacity || ""}
-												onChange={(e) =>
-													setNewVenue({
-														...newVenue,
-														capacity: parseInt(e.target.value) || 0,
-													})
-												}
-											/>
-										</div>
-									</div>
 									<Button type="button" onClick={handleCreateVenue}>
 										Crear lugar
 									</Button>
@@ -538,7 +478,7 @@ export function EventsNewView() {
 
 							<div className="space-y-4">
 								<div className="flex items-center justify-between">
-									<Label>Fechas del evento *</Label>
+									<Label>Fechas del evento</Label>
 									<Button
 										type="button"
 										variant="outline"
@@ -556,12 +496,21 @@ export function EventsNewView() {
 										className="p-4 border rounded-lg space-y-4 bg-muted/30"
 									>
 										<div className="flex items-center justify-between">
-											<p className="font-medium text-sm">Fecha {index + 1}</p>
+											<p className="font-medium text-sm">
+												Fecha {index + 1}
+												{eventDate.isNew && (
+													<span className="ml-2 text-xs text-muted-foreground">
+														(nueva)
+													</span>
+												)}
+											</p>
 											{eventDates.length > 1 && (
 												<Button
 													variant="ghost"
 													size="sm"
-													onClick={() => removeEventDate(eventDate.id)}
+													onClick={() =>
+														removeEventDate(eventDate.id, eventDate.isNew)
+													}
 												>
 													<Trash2 className="h-4 w-4 text-destructive" />
 												</Button>
@@ -616,93 +565,6 @@ export function EventsNewView() {
 							</div>
 						</CardContent>
 					</Card>
-
-					<Card>
-						<CardHeader>
-							<CardTitle className="flex items-center gap-2">
-								<Ticket className="h-5 w-5" />
-								Tipos de boletos
-							</CardTitle>
-							<CardDescription>
-								Define los tipos de boletos y precios (se crearán después de
-								guardar el evento)
-							</CardDescription>
-						</CardHeader>
-						<CardContent className="space-y-4">
-							{ticketTypes.map((ticket, index) => (
-								<div
-									key={ticket.id}
-									className="p-4 border rounded-lg space-y-4"
-								>
-									<div className="flex items-center justify-between">
-										<p className="font-medium text-sm">
-											Tipo de boleto {index + 1}
-										</p>
-										{ticketTypes.length > 1 && (
-											<Button
-												variant="ghost"
-												size="sm"
-												onClick={() => removeTicketType(ticket.id)}
-											>
-												<Trash2 className="h-4 w-4 text-destructive" />
-											</Button>
-										)}
-									</div>
-									<div className="grid gap-4 sm:grid-cols-3">
-										<div className="space-y-2">
-											<Label>Nombre</Label>
-											<Input
-												placeholder="VIP, General, etc."
-												value={ticket.name}
-												onChange={(e) =>
-													updateTicketType(ticket.id, "name", e.target.value)
-												}
-											/>
-										</div>
-										<div className="space-y-2">
-											<Label>Precio (MXN)</Label>
-											<Input
-												type="number"
-												placeholder="500"
-												value={ticket.price || ""}
-												onChange={(e) =>
-													updateTicketType(
-														ticket.id,
-														"price",
-														parseInt(e.target.value) || 0,
-													)
-												}
-											/>
-										</div>
-										<div className="space-y-2">
-											<Label>Cantidad</Label>
-											<Input
-												type="number"
-												placeholder="100"
-												value={ticket.quantity || ""}
-												onChange={(e) =>
-													updateTicketType(
-														ticket.id,
-														"quantity",
-														parseInt(e.target.value) || 0,
-													)
-												}
-											/>
-										</div>
-									</div>
-								</div>
-							))}
-							<Button
-								variant="outline"
-								type="button"
-								onClick={addTicketType}
-								className="w-full"
-							>
-								<Plus className="h-4 w-4 mr-2" />
-								Agregar tipo de boleto
-							</Button>
-						</CardContent>
-					</Card>
 				</div>
 
 				<div className="space-y-6">
@@ -724,7 +586,7 @@ export function EventsNewView() {
 									})
 								}
 								context="event"
-								placeholder="Arrastra una imagen o haz clic para seleccionar (1920x1080px)"
+								placeholder="Arrastra una imagen o haz clic para seleccionar"
 								aspectRatio="16/9"
 							/>
 							<div className="space-y-2">

@@ -55,12 +55,8 @@ import {
 	AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import Link from "next/link";
-import {
-	useOrganizationEvents,
-	useDeleteEvent,
-	usePublishEvent,
-	useCancelEvent,
-} from "@/lib/api/hooks/use-events";
+import { useOrganizationEvents } from "@/lib/api/hooks/use-events";
+import { apiFetch } from "@/lib/api/client";
 import { useOrgStore } from "@/lib/org-store";
 import type { Event } from "@/lib/api/types";
 import { toast } from "sonner";
@@ -72,15 +68,13 @@ export function EventsView() {
 
 	const { currentOrg } = useOrgStore();
 	const {
-		data: eventsResult,
+		data: events = [],
 		isLoading,
 		error,
 		mutate,
 	} = useOrganizationEvents({
 		include: "venue,dates,ticket_types",
 	});
-
-	const events = eventsResult?.data ?? [];
 
 	// Count events by status
 	const statusCounts = {
@@ -155,22 +149,29 @@ export function EventsView() {
 
 	const handlePublish = async (eventId: string) => {
 		try {
-			const { publishEvent } = usePublishEvent(eventId);
-			await publishEvent();
+			await apiFetch(`/events/${eventId}`, {
+				method: "PUT",
+				body: {
+					status: "published",
+					published_at: new Date().toISOString(),
+				},
+			});
 			mutate();
 			toast.success("Evento publicado exitosamente");
-		} catch (error) {
+		} catch {
 			toast.error("Error al publicar el evento");
 		}
 	};
 
 	const handleCancel = async (eventId: string) => {
 		try {
-			const { cancelEvent } = useCancelEvent(eventId);
-			await cancelEvent();
+			await apiFetch(`/events/${eventId}`, {
+				method: "PUT",
+				body: { status: "cancelled" },
+			});
 			mutate();
 			toast.success("Evento cancelado");
-		} catch (error) {
+		} catch {
 			toast.error("Error al cancelar el evento");
 		}
 	};
@@ -178,12 +179,11 @@ export function EventsView() {
 	const handleDelete = async () => {
 		if (!deleteEventId) return;
 		try {
-			const { deleteEvent } = useDeleteEvent(deleteEventId);
-			await deleteEvent();
+			await apiFetch(`/events/${deleteEventId}`, { method: "DELETE" });
 			mutate();
 			toast.success("Evento eliminado");
 			setDeleteEventId(null);
-		} catch (error) {
+		} catch {
 			toast.error("Error al eliminar el evento");
 		}
 	};
