@@ -46,6 +46,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import {
 	useEvent,
@@ -57,6 +58,7 @@ import {
 } from "@/lib/api/hooks/use-events";
 import { apiFetch } from "@/lib/api/client";
 import { useApiQuery } from "@/lib/api/client";
+import { getTicketsPublicUrl } from "@/lib/api/config";
 import type { TicketType } from "@/lib/api/types";
 import { toast } from "sonner";
 
@@ -406,10 +408,14 @@ export function EventDetailView({ eventId }: EventDetailViewProps) {
 					{event.image_url && (
 						<Card>
 							<CardContent className="p-0">
-								<img
+								<Image
 									src={event.image_url}
 									alt={event.title}
+									width={1920}
+									height={1080}
 									className="w-full h-64 object-cover rounded-lg"
+									placeholder={event.image_blur ? "blur" : "empty"}
+									blurDataURL={event.image_blur ?? undefined}
 								/>
 							</CardContent>
 						</Card>
@@ -655,7 +661,7 @@ export function EventDetailView({ eventId }: EventDetailViewProps) {
 									asChild
 								>
 									<a
-										href={`https://tickets-local.boletrics.workers.dev/events/${event.slug}`}
+										href={`${getTicketsPublicUrl()}/events/${event.slug}`}
 										target="_blank"
 										rel="noopener noreferrer"
 									>

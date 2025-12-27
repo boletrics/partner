@@ -39,8 +39,8 @@ import {
 	useUpdateEvent,
 	useEventDates,
 	useAddEventDate,
-	useRemoveEventDate,
 } from "@/lib/api/hooks/use-events";
+import { apiFetch, revalidate } from "@/lib/api/client";
 import { useVenues, useCreateVenue } from "@/lib/api/hooks/use-venues";
 import type { EventCategory } from "@/lib/api/types";
 import { toast } from "sonner";
@@ -229,8 +229,9 @@ export default function EditEventPage() {
 			if (!isNew) {
 				// Remove from server
 				try {
-					const { removeDate } = useRemoveEventDate(eventId, id);
-					await removeDate();
+					await apiFetch(`/event-dates/${id}`, { method: "DELETE" });
+					revalidate(`/events/${eventId}`);
+					revalidate(/\/event-dates/);
 					toast.success("Fecha eliminada");
 				} catch {
 					toast.error("Error al eliminar la fecha");

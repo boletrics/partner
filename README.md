@@ -70,7 +70,7 @@ Open [http://localhost:3002](http://localhost:3002) to view the dashboard.
 
 ## Project Structure
 
-```
+```text
 partner/
 ├── src/
 │   ├── app/
