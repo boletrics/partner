@@ -128,6 +128,11 @@ export function EventsNewView() {
 				.replace(/-+/g, "-") // Replace multiple dashes with single
 				.replace(/^-|-$/g, ""); // Remove leading/trailing dashes
 
+			if (!slug) {
+				toast.error("El título del evento debe contener caracteres válidos");
+				return;
+			}
+
 			// Create the event
 			const eventInput: CreateEventInput = {
 				org_id: currentOrg.id,
@@ -146,6 +151,7 @@ export function EventsNewView() {
 			const event = await createEvent(eventInput);
 
 			// Create event dates
+			const dateErrors: string[] = [];
 			for (const eventDate of validDates) {
 				try {
 					await apiFetch("/event-dates", {
@@ -159,13 +165,19 @@ export function EventsNewView() {
 					});
 				} catch (err) {
 					console.error("Error creating event date:", err);
+					dateErrors.push(eventDate.date);
 				}
+			}
+
+			if (dateErrors.length > 0) {
+				toast.error(`Algunas fechas no se crearon: ${dateErrors.join(", ")}`);
 			}
 
 			// Create ticket types
 			const validTickets = ticketTypes.filter(
 				(t) => t.name && t.price > 0 && t.quantity > 0,
 			);
+			const ticketErrors: string[] = [];
 			for (const ticket of validTickets) {
 				try {
 					await apiFetch("/ticket-types", {
@@ -180,7 +192,14 @@ export function EventsNewView() {
 					});
 				} catch (err) {
 					console.error("Error creating ticket type:", err);
+					ticketErrors.push(ticket.name);
 				}
+			}
+
+			if (ticketErrors.length > 0) {
+				toast.error(
+					`Algunos boletos no se crearon: ${ticketErrors.join(", ")}`,
+				);
 			}
 
 			toast.success(

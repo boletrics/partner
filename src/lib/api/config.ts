@@ -5,6 +5,8 @@
 export const DEFAULT_TICKETS_SVC_URL =
 	"https://tickets-svc.boletrics.workers.dev";
 
+export const DEFAULT_TICKETS_PUBLIC_URL = "https://tickets.boletrics.com";
+
 /**
  * Base URL for the tickets-svc API.
  *
@@ -16,5 +18,15 @@ export function getTicketsSvcUrl(): string {
 		process.env.TICKETS_SVC_URL ??
 		process.env.NEXT_PUBLIC_TICKETS_SVC_URL ??
 		DEFAULT_TICKETS_SVC_URL
+	);
+}
+
+/**
+ * Public URL for the customer-facing tickets portal.
+ * Used for external links to event pages.
+ */
+export function getTicketsPublicUrl(): string {
+	return (
+		process.env.NEXT_PUBLIC_TICKETS_PUBLIC_URL ?? DEFAULT_TICKETS_PUBLIC_URL
 	);
 }
